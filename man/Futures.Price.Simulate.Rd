@@ -2,7 +2,7 @@
 % Please edit documentation in R/Simulations.R
 \name{Futures.Price.Simulate}
 \alias{Futures.Price.Simulate}
-\title{Futures.Price.Simulate:}
+\title{Simulate N-Factor Model Futures Prices}
 \usage{
 Futures.Price.Simulate(X.0, parameters, dt, N.obs, TTM, verbose = TRUE)
 }
@@ -22,12 +22,15 @@ Futures.Price.Simulate(X.0, parameters, dt, N.obs, TTM, verbose = TRUE)
 \value{
 \code{Futures.Price.Simulate} returns a list with three objects when \code{verbose = T} and a matrix of simulated futures prices when \code{verbose = F}. The list objects returned are:
 
-\code{State.Vector} A \code{matrix} of Simulated state variables at each discrete time point. The columns represent each factor of the N-factor model and the rows represent
-the simulated values at each discrete simulated time point.
+#'\tabular{ll}{
 
-\code{Futures} A \code{matrix} of Simulated futures prices, with each column representing a simulated futures contract.
+\code{State.Vector} \tab  A \code{matrix} of Simulated state variables at each discrete time point. The columns represent each factor of the N-factor model and the rows represent
+the simulated values at each discrete simulated time point. \cr
 
-\code{Spot} A vector of simulated spot prices
+\code{Futures} \tab  A \code{matrix} of Simulated futures prices, with each column representing a simulated futures contract. \cr
+
+\code{Spot} \tab A vector of simulated spot prices \cr
+}
 }
 \description{
 Simulate Futures price data with dynamics that follow the parameters of an N-factor model through Monte Carlo simulation.

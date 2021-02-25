@@ -34,8 +34,8 @@
 #'@param cluster 	an optional object of the 'cluster' class returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 #'to be performed across multiple cluster nodes.
 #'
-#'@param Domains an optional \code{matrix} of the lower and upper bounds for the parameter estimation process. The \code{NFCP.bounds} function is highly recommended.
-#'When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP.bounds} function are used.
+#'@param Domains an optional \code{matrix} of the lower and upper bounds for the parameter estimation process. The \code{NFCP.Domains} function is highly recommended.
+#'When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP.Domains} function are used.
 #'
 #'@param ... additional arguments to be passed into the \code{genoud} function. See \code{help(genoud)}
 #'
@@ -51,7 +51,7 @@
 #'
 #'\code{NFCP.MLE} performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
 #'the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by \code{Domains}. When \code{Domains} is not specified, the default
-#'bounds specified by the \code{NFCP.bounds} function are used.
+#'bounds specified by the \code{NFCP.Domains} function are used.
 #'
 #'\bold{The N-factor model}
 #'The N-factor model was first presented in the work of Cortazar and Naranjo (2006, equations 1-3). The N-factor framework
@@ -147,6 +147,8 @@
 #'
 #'\code{TSFit.Volatility} \tab \code{matrix}. The theoretical and empirical volatility of futures returns for each observed contract as returned from the \code{TSFit.Volatility} function \cr
 #'
+#'\code{proc_time} \tab \code{list}. The real and CPU time (in seconds) the \code{NFCP.MLE} function has taken. \cr
+#'
 #'\code{genoud.value} \tab \code{list}. The output of the called \code{genoud} function.
 #'
 #' }
@@ -170,13 +172,12 @@
 #'  log.futures = log(SS.Oil$Stitched.Futures)[1:5,1],
 #'  dt = SS.Oil$dt,
 #'  TTM= SS.Oil$Stitched.TTM[1],
-#'  S.Constant = FALSE, N.factors = 2, GBM = TRUE,
-#'  cluster = NULL,
-#'  hessian = TRUE,
+#'  S.Constant = FALSE, N.factors = 1, GBM = TRUE,
 #'  ####Genoud arguments:
+#'  hessian = TRUE,
 #'  Richardsons.Extrapolation = FALSE,
 #'  pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
-#'  max.generations = 0, solution.tolerance = 0.1)
+#'  max.generations = 0, solution.tolerance = 10)
 #'
 #'##Example 2 - Incomplete, Contract Data:
 #'Schwartz.Smith.Two.Factor.Contract <- NFCP.MLE(
@@ -185,18 +186,19 @@
 #'  dt = SS.Oil$dt,
 #'  TTM= SS.Oil$Contract.Maturities[1:20,1:5],
 #'  S.Constant = TRUE,
-#'  N.factors = 2, GBM = TRUE,
-#'  cluster = NULL,
-#'  hessian = TRUE,
+#'  N.factors = 1, GBM = TRUE,
 #'  ####Genoud arguments:
+#'  hessian = TRUE,
 #'  Richardsons.Extrapolation = FALSE,
 #'  pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
-#'  max.generations = 0, solution.tolerance = 0.1)
+#'  max.generations = 0, solution.tolerance = 10)
 #'
 #'
 #'@export
 NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = TRUE, Estimate.Initial.State = FALSE,
                                   Richardsons.Extrapolation = TRUE, cluster = FALSE, Domains = NULL, ...){
+
+  time.0 <- proc.time()
 
   ##Standardize format:
   log.futures <- as.matrix(log.futures)
@@ -212,7 +214,7 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
   if(!Contract.Data && length(TTM)!=ncol(log.futures)) stop("Number of observations does not equal number of time homogeneous TTM's")
 
   ##Unknown Parameters:
-  parameters <- NFCP.Parameters(N.factors, GBM, Estimate.Initial.State, S.Constant, N.contracts)
+  parameters <- NFCP::NFCP.Parameters(N.factors, GBM, Estimate.Initial.State, S.Constant, N.contracts)
 
   cat("---------------------------------------------------------------- \n")
   cat("Term Structure Estimation: \n")
@@ -223,15 +225,15 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
   ##Gradient Function?
   if(Richardsons.Extrapolation){
     ####Richardsons Extrapolation:
-    gr <- function(x,...) numDeriv::grad(func = NFCP.Kalman.filter, x, parameters = parameters, log.futures = log.futures,
+    gr <- function(x,...) numDeriv::grad(func = NFCP::NFCP.Kalman.filter, x, parameters = parameters, log.futures = log.futures,
                                         dt = dt, TTM = TTM)
   } else gr <- NULL
 
   ##Domain Boundaries?
-  if(is.null(Domains)) Domains <- NFCP.bounds(parameters)
+  if(is.null(Domains)) Domains <- NFCP::NFCP.Domains(parameters)
 
   ##Parallel Processing?
-  if(!any(class(cluster)=="cluster")) cluster <- F
+  if(!any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cluster <- F
 
   ##Run the Genetic Algorithm Parameter Estimation:
   NFCP.Output <- rgenoud::genoud(NFCP.Kalman.filter, nvars = length(parameters), parameters = parameters,
@@ -240,22 +242,64 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
                                boundary.enforcement = 2, gradient.check = F, cluster = cluster, ...)
 
   ###Close the cluster:
-  if(any(class(cluster)=="cluster")) parallel::stopCluster(cluster)
+  if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) parallel::stopCluster(cluster)
 
   ####Parameter Estimation Complete:
-  Estimated.Parameters <- NFCP.Output$par
+  Estimated.Parameters <- matrix(NFCP.Output$par)
+  rownames(Estimated.Parameters) <- parameters
+
+  # Standard Errors:
+  if("hessian" %in% names(NFCP.Output)){
+    SE <- suppressWarnings(try(sqrt(abs(diag(solve(- NFCP.Output$hessian)))), silent = TRUE))
+    if(class(SE)[1] != "try-error"){
+      names(SE) <- parameters
+      Estimated.Parameters <- cbind(Estimated.Parameters, SE)
+    }
+  }
+
+  ### Which parameters are the Kappa?
+  parameter_index <- which(grepl("kappa", parameters))
+
+  if(length(parameter_index) > 1){
+
+  ## Sort the estimated parameters in terms of increasing Kappa's
+  Ordered <- order(Estimated.Parameters[parameter_index,1])
+
+  ## Order the Kappas:
+  Estimated.Parameters[grepl("kappa", parameters),] <- Estimated.Parameters[grepl("kappa", parameters),][Ordered,]
+  ## Order the Sigma's:
+  if(GBM){
+  Estimated.Parameters[grepl("sigma_", parameters),][-1,] <- Estimated.Parameters[grepl("sigma_", parameters),][-1,][Ordered,]
+  } else {
+    Estimated.Parameters[grepl("sigma_", parameters),] <- Estimated.Parameters[grepl("sigma_", parameters),][Ordered,]
+  }
+  ## Order the lambda's:
+  Estimated.Parameters[grepl("lambda_", parameters),] <- Estimated.Parameters[grepl("lambda_", parameters),][Ordered,]
+
+  ## Order the Rho's:
+  Rho <- Estimated.Parameters[grepl("rho_", parameters),]
+  if(GBM) Ordered <- c(1, Ordered + 1)
+
+  for(iter in 1:(N.factors-1)){
+    for(iter_2 in 2:N.factors){
+      if(iter != iter_2){
+        Estimated.Parameters[paste("rho", iter, iter_2, sep = "_"),] <- Rho[paste("rho",
+                                                                                  min(Ordered[iter], Ordered[iter_2]),
+                                                                                  max(Ordered[iter], Ordered[iter_2]), sep = "_"),]
+      }
+    }}
+
+  }
+  ## Ordered outputs:
+  if(exists("SE") & class(SE)[1] != "try-error") SE <- Estimated.Parameters[,2]
+  Estimated.Parameters <- as.numeric(Estimated.Parameters[,1])
   names(Estimated.Parameters) <- parameters
 
   #Output List:
   NFCP.List <- list(MLE = NFCP.Output$value, Estimated.Parameters = Estimated.Parameters)
-  if("hessian" %in% names(NFCP.Output)){
-    SE <- suppressWarnings(try(sqrt(diag(solve(- NFCP.Output$hessian))), silent = TRUE))
-    if(class(SE)[1] != "try-error"){
-      names(SE) <- parameters
-      NFCP.List <- c(NFCP.List, list(Standard.Errors = SE))
-    }
-  }
+  if(exists("SE")) NFCP.List <- c(NFCP.List, list(Standard.Errors = SE))
+
   return(c(NFCP.List,
            NFCP::NFCP.Kalman.filter(parameter.values = Estimated.Parameters, parameters = parameters, log.futures = log.futures, TTM = TTM,
-                                  dt = dt, verbose = TRUE)[-1], list(genoud.value = NFCP.Output)))
+                                  dt = dt, verbose = TRUE)[-1], proc_time = list(proc.time() - time.0), list(genoud.value = NFCP.Output)))
 }

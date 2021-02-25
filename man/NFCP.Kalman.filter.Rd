@@ -2,7 +2,7 @@
 % Please edit documentation in R/Kalman-Filter.R
 \name{NFCP.Kalman.filter}
 \alias{NFCP.Kalman.filter}
-\title{NFCP.Kalman.filter}
+\title{N-Factor Commodity Pricing Kalman Filter}
 \usage{
 NFCP.Kalman.filter(
   parameter.values,
@@ -53,6 +53,8 @@ When \code{verbose = T}, the \code{NFCP.Kalman.filter} function returns a \code{
 \code{Y} \tab \code{matrix}. Estimated futures prices at each observation \cr
 
 \code{V} \tab \code{matrix}. Estimation error of each futures contracts at each observation \cr
+
+\code{Filtered.Error} \tab \code{matrix}. positive mean error (high bias), negative mean error (low bias), mean error (bias) and root mean squared error (RMSE) of the filtered values to observed futures prices.  \cr
 
 \code{TSFit.Error} \tab \code{matrix}. The Mean Error (Bias), Mean Absolute Error, Standard Deviation of Error and Root Mean Squared Error (RMSE) of each
 observed contract, matching the column names of \code{log.futures}  \cr

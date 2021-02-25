@@ -1,4 +1,4 @@
-#' Spot.Price.Forecast
+#' Forecast N-Factor Model Spot Prices
 #' @description Analytically forecast expected spot prices following the "true" process of a given n-factor stochastic model
 #'
 #'@param X.0 Initial values of the state vector.
@@ -104,7 +104,7 @@ Spot.Price.Forecast <- function(X.0, parameters, t, Percentiles = NULL){
   return(saved_forecasts)
 }
 
-#'Futures.Price.Forecast
+#'Forecast N-factor Model Futures Prices
 #'@description Analytically forecast future expected Futures prices under the risk-neutral version of a specified N-factor model.
 #'@param X.0 Initial values of the state vector.
 #'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP.Parameters} is recommended.
@@ -212,7 +212,7 @@ Futures.Price.Forecast <- function(X.0, parameters, t = 0, TTM = 1:10, Percentil
 }
 
 
-#'Spot.Price.Simulate
+#'Simulate N-Factor Model Spot Prices
 #'
 #'@description Simulate risk-neutral price paths of an an N-factor commodity pricing model through Monte Carlo Simulation.
 #'
@@ -252,9 +252,13 @@ Futures.Price.Forecast <- function(X.0, parameters, t = 0, TTM = 1:10, Percentil
 #'@return
 #'\code{Spot.Price.Simulate} returns a list when \code{verbose = T} and a matrix of simulated price paths when \code{verbose = F}. The returned objects in the list are:
 #'
-#'\code{Prices} A matrix of simulated price paths. Each column represents one simulated price path and each row represents one simulated observation.
+#'\tabular{ll}{
 #'
-#'\code{Factors} A matrix of simulated state variables for each factor is returned when \code{verbose = T}. The number of factors returned corresponds to the number of factors in the specified N-factor model.
+#' \code{State_Variables} \tab A matrix of simulated state variables for each factor is returned when \code{verbose = T}. The number of factors returned corresponds to the number of factors in the specified N-factor model. \cr
+#'
+#' \code{Prices} \tab A matrix of simulated price paths. Each column represents one simulated price path and each row represents one simulated observation. \cr
+#'
+#' }
 #'
 #'@references
 #'
@@ -352,10 +356,10 @@ Spot.Price.Simulate <- function(X.0, parameters, t = 1, dt = 1, n = 2, antitheti
       #Shock:
       ###The MR Shock is used in accordance to a cum sum:
       ##This is the interior of the integral / summation:
-      shock_val <-  shock * exp(MR_kappa * time_periods[-1])
+      shock_val <-  shocks[,i] * exp(MR_kappa * time_periods[-1])
 
       ##The cumsum is the integral / summation, the second multiplication is the shock part before it.
-      MR_shock <- MR_sigma * apply(matrix(shocks[,i], nrow = nsteps), MARGIN = 2, cumsum) * chi_x
+      MR_shock <- MR_sigma * apply(matrix(shock_val, nrow = nsteps), MARGIN = 2, cumsum) * chi_x
 
       #State Matrix:
       State.Matrix[2:(nsteps+1),seq(1, N_sim, ifelse(antithetic,2,1)),i] <- Drift + MR_shock
@@ -397,7 +401,7 @@ Spot.Price.Simulate <- function(X.0, parameters, t = 1, dt = 1, n = 2, antitheti
   }
 
 
-#'Futures.Price.Simulate:
+#'Simulate N-Factor Model Futures Prices
 #'@description Simulate Futures price data with dynamics that follow the parameters of an N-factor model through Monte Carlo simulation.
 #'
 #'@param X.0 Initial values of the state vector.
@@ -419,12 +423,15 @@ Spot.Price.Simulate <- function(X.0, parameters, t = 1, dt = 1, n = 2, antitheti
 #'@return
 #'\code{Futures.Price.Simulate} returns a list with three objects when \code{verbose = T} and a matrix of simulated futures prices when \code{verbose = F}. The list objects returned are:
 #'
-#'\code{State.Vector} A \code{matrix} of Simulated state variables at each discrete time point. The columns represent each factor of the N-factor model and the rows represent
-#'the simulated values at each discrete simulated time point.
+#'#'\tabular{ll}{
 #'
-#'\code{Futures} A \code{matrix} of Simulated futures prices, with each column representing a simulated futures contract.
+#' \code{State.Vector} \tab  A \code{matrix} of Simulated state variables at each discrete time point. The columns represent each factor of the N-factor model and the rows represent
+#'the simulated values at each discrete simulated time point. \cr
 #'
-#'\code{Spot} A vector of simulated spot prices
+#' \code{Futures} \tab  A \code{matrix} of Simulated futures prices, with each column representing a simulated futures contract. \cr
+#'
+#' \code{Spot} \tab A vector of simulated spot prices \cr
+#' }
 #'
 #'@references
 #'

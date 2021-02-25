@@ -2,7 +2,7 @@
 % Please edit documentation in R/Simulations.R
 \name{Futures.Price.Forecast}
 \alias{Futures.Price.Forecast}
-\title{Futures.Price.Forecast}
+\title{Forecast N-factor Model Futures Prices}
 \usage{
 Futures.Price.Forecast(X.0, parameters, t = 0, TTM = 1:10, Percentiles = NULL)
 }

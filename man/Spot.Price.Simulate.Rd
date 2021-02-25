@@ -2,7 +2,7 @@
 % Please edit documentation in R/Simulations.R
 \name{Spot.Price.Simulate}
 \alias{Spot.Price.Simulate}
-\title{Spot.Price.Simulate}
+\title{Simulate N-Factor Model Spot Prices}
 \usage{
 Spot.Price.Simulate(
   X.0,
@@ -32,9 +32,13 @@ Spot.Price.Simulate(
 \value{
 \code{Spot.Price.Simulate} returns a list when \code{verbose = T} and a matrix of simulated price paths when \code{verbose = F}. The returned objects in the list are:
 
-\code{Prices} A matrix of simulated price paths. Each column represents one simulated price path and each row represents one simulated observation.
+\tabular{ll}{
 
-\code{Factors} A matrix of simulated state variables for each factor is returned when \code{verbose = T}. The number of factors returned corresponds to the number of factors in the specified N-factor model.
+\code{State_Variables} \tab A matrix of simulated state variables for each factor is returned when \code{verbose = T}. The number of factors returned corresponds to the number of factors in the specified N-factor model. \cr
+
+\code{Prices} \tab A matrix of simulated price paths. Each column represents one simulated price path and each row represents one simulated observation. \cr
+
+}
 }
 \description{
 Simulate risk-neutral price paths of an an N-factor commodity pricing model through Monte Carlo Simulation.

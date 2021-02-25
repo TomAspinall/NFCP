@@ -4,12 +4,9 @@
 \alias{TSFit.Volatility}
 \title{Volatility Term Structure of futures returns}
 \usage{
-TSFit.Volatility(parameter.values, parameters, Futures, TTM, dt)
+TSFit.Volatility(parameters, Futures, TTM, dt)
 }
 \arguments{
-\item{parameter.values}{Vector of parameter values of an N-factor model. The \code{NFCP.Kalman.filter} function is designed for
-application to \code{optim} type functions, and thus the parameter values and corresponding parameter names are separated by different inputs within the function.}
-
 \item{parameters}{A named vector of parameters of an N-factor model. Function \code{NFCP.Parameters} is recommended.}
 
 \item{Futures}{A Matrix of futures price data. Each column corresponds to a given futures contract, and each row is an observation of the futures contracts.}
@@ -45,8 +42,7 @@ According to Cortazar and Naranjo (2006): "A larger number of factors gives more
 \examples{
 ### Test the volatility term structure fit of the Schwartz-Smith two-factor model on crude oil:
 V_TSFit <- TSFit.Volatility(
- parameter.values = SS.Oil$Two.Factor,
- parameters = names(SS.Oil$Two.Factor),
+ parameters = SS.Oil$Two.Factor,
  Futures = SS.Oil$Stitched.Futures,
  TTM = SS.Oil$Stitched.TTM,
  dt = SS.Oil$dt)

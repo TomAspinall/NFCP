@@ -46,8 +46,8 @@ approximate the gradient within the \code{genoud} optimization algorithm.}
 \item{cluster}{an optional object of the 'cluster' class returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 to be performed across multiple cluster nodes.}
 
-\item{Domains}{an optional \code{matrix} of the lower and upper bounds for the parameter estimation process. The \code{NFCP.bounds} function is highly recommended.
-When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP.bounds} function are used.}
+\item{Domains}{an optional \code{matrix} of the lower and upper bounds for the parameter estimation process. The \code{NFCP.Domains} function is highly recommended.
+When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP.Domains} function are used.}
 
 \item{...}{additional arguments to be passed into the \code{genoud} function. See \code{help(genoud)}}
 }
@@ -75,6 +75,8 @@ observed contract, matching the column names of \code{log.futures}  \cr
 
 \code{TSFit.Volatility} \tab \code{matrix}. The theoretical and empirical volatility of futures returns for each observed contract as returned from the \code{TSFit.Volatility} function \cr
 
+\code{proc_time} \tab \code{list}. The real and CPU time (in seconds) the \code{NFCP.MLE} function has taken. \cr
+
 \code{genoud.value} \tab \code{list}. The output of the called \code{genoud} function.
 
 }
@@ -95,7 +97,7 @@ function (except for \code{gradient.check}, which is hard set to false).
 
 \code{NFCP.MLE} performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
 the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by \code{Domains}. When \code{Domains} is not specified, the default
-bounds specified by the \code{NFCP.bounds} function are used.
+bounds specified by the \code{NFCP.Domains} function are used.
 
 \bold{The N-factor model}
 The N-factor model was first presented in the work of Cortazar and Naranjo (2006, equations 1-3). The N-factor framework
@@ -177,13 +179,12 @@ Schwartz.Smith.Two.Factor.Stitched <- NFCP.MLE(
  log.futures = log(SS.Oil$Stitched.Futures)[1:5,1],
  dt = SS.Oil$dt,
  TTM= SS.Oil$Stitched.TTM[1],
- S.Constant = FALSE, N.factors = 2, GBM = TRUE,
- cluster = NULL,
- hessian = TRUE,
+ S.Constant = FALSE, N.factors = 1, GBM = TRUE,
  ####Genoud arguments:
+ hessian = TRUE,
  Richardsons.Extrapolation = FALSE,
  pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
- max.generations = 0, solution.tolerance = 0.1)
+ max.generations = 0, solution.tolerance = 10)
 
 ##Example 2 - Incomplete, Contract Data:
 Schwartz.Smith.Two.Factor.Contract <- NFCP.MLE(
@@ -192,13 +193,12 @@ Schwartz.Smith.Two.Factor.Contract <- NFCP.MLE(
  dt = SS.Oil$dt,
  TTM= SS.Oil$Contract.Maturities[1:20,1:5],
  S.Constant = TRUE,
- N.factors = 2, GBM = TRUE,
- cluster = NULL,
- hessian = TRUE,
+ N.factors = 1, GBM = TRUE,
  ####Genoud arguments:
+ hessian = TRUE,
  Richardsons.Extrapolation = FALSE,
  pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
- max.generations = 0, solution.tolerance = 0.1)
+ max.generations = 0, solution.tolerance = 10)
 
 
 }

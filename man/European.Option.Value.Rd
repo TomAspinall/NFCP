@@ -2,7 +2,7 @@
 % Please edit documentation in R/Analysis.R
 \name{European.Option.Value}
 \alias{European.Option.Value}
-\title{European.Option.Value}
+\title{N-Factor Model European Option Pricing}
 \usage{
 European.Option.Value(X.0, parameters, t, TTM, K, r, call, verbose = FALSE)
 }
@@ -77,7 +77,7 @@ and:
 \frac{1-e^{-\left(\kappa_i+\kappa_j\right)t}}{\kappa_i+\kappa_j}})}{
 sigma[phi](t,T) = sqrt( sigma[1]^2 + sum_[i.j != 1]( e^(-(kappa[i] + kappa[j])(T-t)) sigma[i] sigma[j] rho[i,j] * (1 - e^(-(kappa[i] + kappa[j])t))/(kappa[i] + kappa[j])))}
 
-Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (ie, \mjeqn{P(Z<d)}{P(Z<d)}).
+Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (i.e. \mjeqn{P(Z<d)}{P(Z<d)}).
 
 Similarly, the value of a European put with the same parameters is given by:
 
@@ -125,10 +125,10 @@ Schwartz.Smith.Oil <- NFCP.Kalman.filter(parameter.values = SS.Oil$Two.Factor,
 ##Step 2 - Calculate 'call' option price:
 European.Option.Value(X.0 = Schwartz.Smith.Oil$X.t,
                       parameters = SS.Oil$Two.Factor,
-                      t = Tt,
-                      TTM = Tt,
-                      K = K,
-                      r = rf,
+                      t = 1,
+                      TTM = 1,
+                      K = 20,
+                      r = 0.05,
                       call = TRUE,
                       verbose = FALSE)
 }

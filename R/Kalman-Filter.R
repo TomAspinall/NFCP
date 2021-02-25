@@ -1,4 +1,4 @@
-#'NFCP.Kalman.filter
+#'N-Factor Commodity Pricing Kalman Filter
 #'
 #'@description
 #'\loadmathjax
@@ -215,6 +215,8 @@
 #'
 #'\code{V} \tab \code{matrix}. Estimation error of each futures contracts at each observation \cr
 #'
+#'\code{Filtered.Error} \tab \code{matrix}. positive mean error (high bias), negative mean error (low bias), mean error (bias) and root mean squared error (RMSE) of the filtered values to observed futures prices.  \cr
+#'
 #'\code{TSFit.Error} \tab \code{matrix}. The Mean Error (Bias), Mean Absolute Error, Standard Deviation of Error and Root Mean Squared Error (RMSE) of each
 #'observed contract, matching the column names of \code{log.futures}  \cr
 #'
@@ -376,10 +378,10 @@ NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM
   }
 
 
-  ##If not verbose, run it with FKF function (faster):
+  ##If not verbose, run it with the fkf.SP function (faster):
   if(!verbose){
 
-    ##These are required structures for the FKF inputs:
+    ##These are required structures for the fkf.SP inputs:
     if(Contract.Data){
     Zt <- array(NA, dim = c(N.contracts, N.factors, N.obs))
     for(i in 1:N.factors) Zt[,i,] <- t(Z[,,i])
@@ -397,10 +399,10 @@ NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM
                    GGt = as.matrix(diag(H)),
                    yt = t(log.futures)))
 
-
+    ## If The model was poorly specified, the log-likelihood returns NA. We need to return a heavily penalised score for the gradient function.
     return(ifelse(is.na(log_likelihood),stats::runif(1, -1.5e6, -1e6), log_likelihood))
   } else {
-    ##KF in R
+    ##Kalman filter in R
 
     #Variables to save:
     save_X <- matrix(0, nrow = N.obs, ncol = N.factors)
@@ -552,20 +554,24 @@ NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM
     ##RMSE of each contract:
     Term_Structure_Fit[4,] <- sqrt(colMeans(save_V^2, na.rm = TRUE))
 
-    rownames(Term_Structure_Fit) <- c("Mean Error", "Mean Absolute Error", "SD Error", "RMS Error")
+    rownames(Term_Structure_Fit) <- c("Mean Error", "Mean Absolute Error", "SD Error", "RMSE")
     colnames(Term_Structure_Fit) <- colnames(save_V) <- colnames(log.futures)
+
+    ### Term structure fit to all observations:
+    Filtered_Error <- c(`High Bias` = mean(save_V[save_V > 0], na.rm = TRUE), `Low Bias` =  mean(save_V[save_V < 0], na.rm = TRUE), `Bias` = mean(save_V, na.rm = TRUE),
+                            `RMSE` = sqrt(mean(save_V^2, na.rm = TRUE)))
 
 
     ###Volatility TSFit:
     if(Contract.Data) {
-      Volatility_TSFit <- TSFit.Volatility(parameter.values, parameters, exp(log.futures), TTM[nrow(TTM),], dt)
+      Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM[nrow(TTM),], dt)
     } else {
-      Volatility_TSFit <- TSFit.Volatility(parameter.values, parameters, exp(log.futures), TTM, dt) }
+      Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM, dt) }
 
 
     ##Verbose List
     output = list(LL = log_likelihood, X.t = X.t, X = save_X, Y = Y_output,
-                  V = save_V, TSFit.Error = Term_Structure_Fit, TSFit.Volatility = Volatility_TSFit)
+                  V = save_V, Filtered.Error = Filtered_Error, TSFit.Error = Term_Structure_Fit, TSFit.Volatility = Volatility_TSFit)
 
     ##Debugging List:
     if(debugging) output <- c(output, list(LL_t = LL_t, P_t = save_P, F_t = save_F, K_t = save_K, d = d, Z = Z, G_t = G_t, c_t = c_t, Q_t = Q_t, H = H))

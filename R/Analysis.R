@@ -3,8 +3,6 @@
 #'
 #'@description Estimate the Theoretical and Empirical Volatility Term Structure of futures returns
 #'
-#'@param parameter.values Vector of parameter values of an N-factor model. The \code{NFCP.Kalman.filter} function is designed for
-#'application to \code{optim} type functions, and thus the parameter values and corresponding parameter names are separated by different inputs within the function.
 #'@param parameters A named vector of parameters of an N-factor model. Function \code{NFCP.Parameters} is recommended.
 #'@param Futures A Matrix of futures price data. Each column corresponds to a given futures contract, and each row is an observation of the futures contracts.
 #'@param TTM A vector listing the Time to Maturities of each listed Futures contract from the current observation point.
@@ -40,23 +38,20 @@
 #'@examples
 #'### Test the volatility term structure fit of the Schwartz-Smith two-factor model on crude oil:
 #'V_TSFit <- TSFit.Volatility(
-#'  parameter.values = SS.Oil$Two.Factor,
-#'  parameters = names(SS.Oil$Two.Factor),
+#'  parameters = SS.Oil$Two.Factor,
 #'  Futures = SS.Oil$Stitched.Futures,
 #'  TTM = SS.Oil$Stitched.TTM,
 #'  dt = SS.Oil$dt)
 #'
 #'@export
-TSFit.Volatility <- function(parameter.values, parameters, Futures, TTM, dt){
+TSFit.Volatility <- function(parameters, Futures, TTM, dt){
 
   TTM <- c(TTM)
+  if(is.null(parameters)) stop("'parameters' must be a named vector!")
 
-  params <- parameter.values
-  names(params) <- parameters
+  N.factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters) & sapply(parameters[paste0("sigma_",1:length(parameters))], FUN = is.numeric) & !sapply(parameters[paste0("sigma_",1:length(parameters))], FUN = is.na)))
 
-  N.factors <- max(which(paste0("sigma_", 1:length(params)) %in% names(params) & sapply(params[paste0("sigma_",1:length(params))], FUN = is.numeric) & !sapply(params[paste0("sigma_",1:length(params))], FUN = is.na)))
-
-  if(!"kappa_1" %in% names(params)) params["kappa_1"] <- 0
+  if(!"kappa_1" %in% names(parameters)) parameters["kappa_1"] <- 0
 
   ###Theoretical Volatility Term Structure:
   VTS.theoretical <- rep(0, length(TTM))
@@ -65,7 +60,7 @@ TSFit.Volatility <- function(parameter.values, parameters, Futures, TTM, dt){
       for(i in 1:N.factors){
         for(j in 1:N.factors){
           VTS.theoretical[F_T]  <- VTS.theoretical[F_T] +
-            params[paste0("sigma_", i)] * params[paste0("sigma_", j)] * ifelse(i == j, 1, params[paste("rho", min(i,j), max(i,j), sep = "_")]) * exp(- (params[paste0("kappa_", i)] + params[paste0("kappa_", j)]) * TTM[F_T])
+            parameters[paste0("sigma_", i)] * parameters[paste0("sigma_", j)] * ifelse(i == j, 1, parameters[paste("rho", min(i,j), max(i,j), sep = "_")]) * exp(- (parameters[paste0("kappa_", i)] + parameters[paste0("kappa_", j)]) * TTM[F_T])
         }}}}
 
   N.obs <- nrow(Futures)
@@ -94,7 +89,7 @@ TSFit.Volatility <- function(parameter.values, parameters, Futures, TTM, dt){
 }
 
 
-#'European.Option.Value
+#'N-Factor Model European Option Pricing
 #'@description Value European Option Put and Calls under the parameters of an N-factor model.
 #'
 #'@param X.0 Initial values of the state vector.
@@ -142,7 +137,7 @@ TSFit.Volatility <- function(parameter.values, parameters, Futures, TTM, dt){
 #'\frac{1-e^{-\left(\kappa_i+\kappa_j\right)t}}{\kappa_i+\kappa_j}})}{
 #'sigma[phi](t,T) = sqrt( sigma[1]^2 + sum_[i.j != 1]( e^(-(kappa[i] + kappa[j])(T-t)) sigma[i] sigma[j] rho[i,j] * (1 - e^(-(kappa[i] + kappa[j])t))/(kappa[i] + kappa[j])))}
 #'
-#'Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (ie, \mjeqn{P(Z<d)}{P(Z<d)}).
+#'Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (i.e. \mjeqn{P(Z<d)}{P(Z<d)}).
 #'
 #'Similarly, the value of a European put with the same parameters is given by:
 #'
@@ -212,10 +207,10 @@ TSFit.Volatility <- function(parameter.values, parameters, Futures, TTM, dt){
 #'##Step 2 - Calculate 'call' option price:
 #' European.Option.Value(X.0 = Schwartz.Smith.Oil$X.t,
 #'                       parameters = SS.Oil$Two.Factor,
-#'                       t = Tt,
-#'                       TTM = Tt,
-#'                       K = K,
-#'                       r = rf,
+#'                       t = 1,
+#'                       TTM = 1,
+#'                       K = 20,
+#'                       r = 0.05,
 #'                       call = TRUE,
 #'                       verbose = FALSE)
 #'@export
@@ -234,21 +229,20 @@ European.Option.Value <- function(X.0, parameters, t, TTM, K, r, call, verbose =
   ###Instantiate the actual function:
   European.Option.Calc <- function(X = 0, parameters, gradit = 0, call){
 
-    if(gradit>0 && gradit<=length(parameters)){
-      parameters[gradit] <- X
-    }
+    if(gradit>0 && gradit<=length(parameters)) parameters[gradit] <- X
 
     if(parameters["TTM"] < parameters["t"]) stop("Contract Maturity must be greater than Option Expiration")
 
     ###Calculate the Variance:
     N.factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
-    if(!"kappa_1" %in% names(parameters)) parameters["kappa_1"] <- 0
-    GBM <- parameters["kappa_1"] == 0
+    GBM <- !("kappa_1" %in% names(parameters))
+    if(GBM) parameters["kappa_1"] <- 0
 
-    ###Calculate expected Futures price:
-    F_tT <- NFCP::Futures.Price.Forecast(X.0 = parameters[grepl("X.", names(parameters))],
-                                        parameters = parameters, t = parameters["t"], TTM = parameters["TTM"])
+    ###Drift term:
+    drift <- parameters["mu_star"] * parameters["t"] + NFCP::A_T(parameters, parameters["TTM"] - parameters["t"])
+    for(i in 1:N.factors) drift <- drift + exp(-parameters[paste0("kappa_", i)] * parameters["TTM"]) * parameters[paste0("X.",i)]
 
+    ###Volatility term:
     sigma_tT <- ifelse(GBM, parameters["sigma_1"]^2 * parameters["t"], 0)
     for(i in 1:N.factors){
       for(j in 1:N.factors){
@@ -257,11 +251,16 @@ European.Option.Value <- function(X.0, parameters, t, TTM, K, r, call, verbose =
 
           sigma_tT <- sigma_tT + exp(-kappa_sums * (parameters["TTM"] - parameters["t"])) * parameters[paste0("sigma_",i)] * parameters[paste0("sigma_",j)] * ifelse(i==j, 1,
                                                                        parameters[paste("rho",min(i,j), max(i,j), sep = "_")]) * (1 - exp(-(kappa_sums * parameters["t"])))/kappa_sums
-        }}}
+        }
+        }}
     ###SD:
     sigma_tT <- c(sqrt(sigma_tT), use.names = FALSE)
 
-    ##Perhaps we are changing the sigma or F, so try again
+    ###Expected Futures price:
+    F_tT <- exp(drift + 0.5 * sigma_tT^2)
+    # F_tT <- NFCP::Futures.Price.Forecast(X.0 = parameters[grepl("X.", names(parameters))],
+    #                                      parameters = parameters, t = parameters["t"], TTM = parameters["TTM"])
+
     parameters["F_tT"] <- F_tT
     parameters["sigma_tT"] <- sigma_tT
 
@@ -302,7 +301,7 @@ European.Option.Value <- function(X.0, parameters, t, TTM, K, r, call, verbose =
         if(!(GBM && i == 1 && j ==1)){
           kappa_sums <- sum(parameters[paste0("kappa_", i)], parameters[paste0("kappa_", j)])
 
-          sigma_tT <- sigma_tT + exp(-kappa_sums * (TTM - t)) * parameters[paste0("sigma_",i)] * parameters[paste0("sigma_",j)] * ifelse(i==j, 1, parameters[paste("rho",min(i,j), max(i,j), sep = "_")]) * (1 - exp(-(kappa_sums * t)))/kappa_sums
+          sigma_tT <- sigma_tT + exp(-kappa_sums * (TTM - t)) * parameters[paste0("sigma_",i)] * parameters[paste0("sigma_",j)] * ifelse(i==j, 1, parameters[paste("rho",min(i,j), max(i,j), sep = "_")]) * ((1 - exp(-(kappa_sums * t)))/kappa_sums)
         }}}
     ###SD:
     sigma_tT <- c(sqrt(sigma_tT), use.names = FALSE)

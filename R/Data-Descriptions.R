@@ -1,7 +1,6 @@
 
-#'SS.Oil
+#'Crude Oil Term Structure Futures Data (1990 - 1995)
 #'
-#'Crude Oil Futures pricing and modeling Data (1990 - 1995)
 #' @docType data
 #'
 #' @usage data(SS.Oil)

@@ -3,7 +3,7 @@
 \docType{data}
 \name{SS.Oil}
 \alias{SS.Oil}
-\title{SS.Oil}
+\title{Crude Oil Term Structure Futures Data (1990 - 1995)}
 \format{
 A \code{list} Containing eight objects:
 
@@ -42,9 +42,6 @@ The \code{SS.Oil} \code{list} object features the approximate weekly observation
 commodity pricing model within the prominent work of Schwartz and Smith (2000) titled: "Short-Term Variations and long-Term Dynamics in Commodity Prices".
 The two-factor commodity pricing model presented within this study is also included. The \code{SS.Oil} list object is used extensively within the
 \code{NFCP} package to provide working examples and showcase the features of the package.
-}
-\details{
-Crude Oil Futures pricing and modeling Data (1990 - 1995)
 }
 \references{
 Dominice Goodwin (2013). Schwartz-Smith 2-factor model - Parameter estimation (https://www.mathworks.com/matlabcentral/fileexchange/43352-schwartz-smith-2-factor-model-parameter-estimation),
