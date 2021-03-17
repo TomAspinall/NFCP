@@ -521,6 +521,10 @@ NFCP.Domains <- function(parameters,
   lower_bounds[grepl("mu", parameters)] <- mu[1]
   upper_bounds[grepl("mu", parameters)] <- mu[2]
 
+  ## long-term risk-free growth rate
+  lower_bounds[grepl("mu_star", parameters)] <- mu_star[1]
+  upper_bounds[grepl("mu_star", parameters)] <- mu_star[2]
+
   ## kappa
   lower_bounds[grepl("kappa", parameters)] <- kappa[1]
   upper_bounds[grepl("kappa", parameters)] <- kappa[2]

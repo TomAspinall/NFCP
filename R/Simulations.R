@@ -349,22 +349,38 @@ Spot.Price.Simulate <- function(X.0, parameters, t = 1, dt = 1, n = 2, antitheti
       MR_kappa  <- parameters[paste0("kappa_", i)]
       MR_lambda <- parameters[paste0("lambda_", i)]
 
+      ## Method One - Not working at the moment:
+
+      # mu <- - MR_lambda / MR_kappa
+      # chi_x <- exp(- MR_kappa * time_periods[-1])
+      # ##Drift:
+      # Drift <- X.0.i * chi_x + mu * (1 - chi_x)
+      # #Shock:
+      # ###The MR Shock is used in accordance to a cum sum:
+      # ##This is the interior of the integral / summation:
+      # shock_val <-  shocks[,i] * exp(MR_kappa * time_periods[-1])
+      #
+      # ##The cumsum is the integral / summation, the second multiplication is the shock part before it.
+      # MR_shock <- MR_sigma * apply(matrix(shock_val, nrow = nsteps), MARGIN = 2, cumsum) * chi_x
+      #
+      # #State Matrix:
+      # State.Matrix[2:(nsteps+1),seq(1, N_sim, ifelse(antithetic,2,1)),i] <- Drift + MR_shock
+      # #Antithetic Values:
+      # if(antithetic) State.Matrix[2:(nsteps+1),seq(2, N_sim, 2), i] <- Drift - MR_shock
+
+      # Method Two:
       mu <- - MR_lambda / MR_kappa
-      chi_x <- exp(- MR_kappa * time_periods[-1])
-      ##Drift:
-      Drift <- X.0.i * chi_x + mu * (1 - chi_x)
-      #Shock:
-      ###The MR Shock is used in accordance to a cum sum:
-      ##This is the interior of the integral / summation:
-      shock_val <-  shocks[,i] * exp(MR_kappa * time_periods[-1])
+      shock_val <-  matrix(shocks[,i], nrow = nsteps) * MR_sigma
 
-      ##The cumsum is the integral / summation, the second multiplication is the shock part before it.
-      MR_shock <- MR_sigma * apply(matrix(shock_val, nrow = nsteps), MARGIN = 2, cumsum) * chi_x
+      for(loop in 2:(nsteps+1)){
+        State.Matrix[loop, seq(1, N_sim, ifelse(antithetic,2,1)), i] <- State.Matrix[loop-1, seq(1, N_sim, ifelse(antithetic,2,1)), i] +
+          MR_kappa * (mu - State.Matrix[loop-1, seq(1, N_sim, ifelse(antithetic,2,1)), i]) * dt +
+          shock_val[loop-1,]
 
-      #State Matrix:
-      State.Matrix[2:(nsteps+1),seq(1, N_sim, ifelse(antithetic,2,1)),i] <- Drift + MR_shock
-      #Antithetic Values:
-      if(antithetic) State.Matrix[2:(nsteps+1),seq(2, N_sim, 2), i] <- Drift - MR_shock
+        if(antithetic) State.Matrix[loop, seq(2, N_sim, ifelse(antithetic,2,1)), i] <- State.Matrix[loop-1, seq(2, N_sim, ifelse(antithetic,2,1)), i] +
+          MR_kappa * (mu - State.Matrix[loop-1, seq(2, N_sim, ifelse(antithetic,2,1)), i]) * dt -
+          shock_val[loop-1,]
+      }
 
     }
     ###Brownian Motion:
@@ -388,8 +404,6 @@ Spot.Price.Simulate <- function(X.0, parameters, t = 1, dt = 1, n = 2, antitheti
     }
     #update log(Prices)
     prices <- prices + State.Matrix[,,i]
-    ##If an uneven number was specified in antithetic:
-    # if(verbose) if(N_sim != n) output[[paste("Factor",i)]] = X[,-ncol(X)] else output[[paste("Factor",i)]] = X
   }
   if(N_sim != n) prices <- prices[,-ncol(prices)]
 

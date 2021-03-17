@@ -257,6 +257,8 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
     }
   }
 
+  if(NFCP.Output$generations != NFCP.Output$peakgeneration){
+
   ### Which parameters are the Kappa?
   parameter_index <- which(grepl("kappa", parameters))
 
@@ -281,14 +283,13 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
   if(GBM) Ordered <- c(1, Ordered + 1)
 
   for(iter in 1:(N.factors-1)){
-    for(iter_2 in 2:N.factors){
-      if(iter != iter_2){
+    for(iter_2 in (iter+1):N.factors){
         Estimated.Parameters[paste("rho", iter, iter_2, sep = "_"),] <- Rho[paste("rho",
                                                                                   min(Ordered[iter], Ordered[iter_2]),
                                                                                   max(Ordered[iter], Ordered[iter_2]), sep = "_"),]
+        }
       }
-    }}
-
+    }
   }
   ## Ordered outputs:
   if(exists("SE") & class(SE)[1] != "try-error") SE <- Estimated.Parameters[,2]
