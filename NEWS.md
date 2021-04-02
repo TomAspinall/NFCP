@@ -1,3 +1,7 @@
+# NFCP 0.2.1
+
+- Minor bug fix to Ornstein-Uhlenbeck simulation of the 'Spot.Price.Simulate' function
+
 # NFCP 0.2.0
 
 - NFCP now depends on the 'LSMRealOptions' package

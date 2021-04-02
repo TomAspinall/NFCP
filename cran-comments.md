@@ -11,6 +11,8 @@
 
 ## Downstream Dependencies
 
-There are currently no downstream dependencies for this package
+* 'FKF.SP' is a downstream dependency. I have run R CMD check, which passed with 0 errors, warnings and notes.
 
-* This is an update of an existing release (0.1.0 -> 0.2.0)
+* 'LSMRealOptions' is a downstream dependency. I have run R CMD check, which passed with 0 errors, warnings and notes.
+
+* This is an update of an existing release (0.2.0 -> 0.2.1)
