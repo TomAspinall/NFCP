@@ -1,19 +1,24 @@
 
 #' @name NFCP
-#' N-factor Commodity Term Structure Model estimation, analysis, forecasting and derivative pricing
+#' N-factor Commodity Pricing Through Term Structure Estimation
 #'
-#' The \code{NFCP} package provides tools to develop Term Structure Commodity Pricing Models. These models can feature both Random Walk and Mean-Reverting Behaviour,
-#' characterized as the exponential sum of N unobservable state variables. The package allows for parameter estimation of N-factor stochastic models through
-#' the Kalman filter and maximum likelihood estimation. Expected Spot and Futures prices can be probabilistically forecasted through analytic expressions and European
-#' Call and Put Options can be values analytically. The package also allows risk-neutral spot and futures prices to be simulated through Monte-Carlo methods.
+#'Commodity pricing models are (systems of) stochastic differential equations that are utilized for the valuation and hedging of commodity contingent claims (i.e. derivative products on the commodity) and
+#'other commodity related investments. Commodity pricing models that capture market dynamics are of great importance to commodity market participants in order to exercise sound investment and risk-management
+#'strategies. Parameters of commodity pricing models are estimated through maximum likelihood estimation, using available term structure futures data of a commodity.
+#''NFCP' (n-factor commodity pricing) provides a framework for the modeling, parameter estimation, probabilistic forecasting, option valuation and simulation of commodity prices through state space and
+#'Monte Carlo methods, risk-neutral valuation and Kalman filtering. 'NFCP' allows the commodity pricing model to consist of n correlated factors, with both random walk and mean-reverting elements.
+#'The n-factor commodity pricing model framework was first presented in the work of Cortazar and Naranjo (2006) <doi:10.1002/fut.20198>.
+#'Examples presented in 'NFCP' replicate the two-factor crude oil commodity pricing model presented in the prolific work of Schwartz and Smith (2000) <doi:10.1287/mnsc.46.7.893.12034> with the approximate
+#'term structure futures data applied within this study provided in the 'NFCP' package.
 #'
 #' The primary features of \code{NFCP} are:
 #'
-#' -	Estimate Commodity Pricing Models through Maximum Likelihood Estimation using the Kalman Filter and Term Structure time-series data.
-#' -	Evaluate the fit and robustness of Commodity Pricing models to Term Structure data.
-#' -	Probabilistically forecast future spot and futures prices analytically
-#' -  Value European Call and Put options under an N-factor model analytically
-#' -  Simulate risk-neutral spot and futures price paths of commodities through Monte-Carlo Simulation
+#' -	Estimate commodity pricing models through maximum likelihood estimation using the Kalman Filter and term structure time-series data.
+#' -	Evaluate the fit and robustness of commodity pricing models to term structure data.
+#' -	Probabilistically forecast future spot and futures prices analytically.
+#' -  Value European call and put options under an N-factor model analytically.
+#' -  Simulate risk-neutral spot and futures price paths of commodities through Monte Carlo Simulation.
+#' -  Value American put options under an N-factor model numerically through the least-squares Monte Carlo simulation method.
 #'
 #' @author
 #' Thomas Aspinall tomaspinall2512@gmail.com (0000-0002-6968-1989)
