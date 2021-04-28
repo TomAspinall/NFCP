@@ -158,7 +158,7 @@ NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, verbose = TRUE
 }
 
 
-#'Stitch Futures Contracts
+#'Stitch futures contracts
 #'@description Aggregate futures contract price data by stitching according to either approximate maturities and rollover frequency or contract number from closest maturity.
 #'
 #'@param futures Contract futures price data. Each row of \code{Futures} should represent one observation of futures prices and each column should represent one quoted futures contract. NA's in \code{Futures} are allowed, representing missing observations.
@@ -398,7 +398,7 @@ A_T <- function(parameters, Tt){
   return(output)
 }
 
-#'N-factor Covariance:
+#'N-factor model covariance:
 #'
 #'@description
 #'\loadmathjax
@@ -449,7 +449,7 @@ cov_func <- function(parameters, dt){
   return(output)
 }
 
-#'N-Factor MLE Search Boundaries
+#'N-Factor MLE search boundaries
 #'@description Generate boundaries for the domain of parameters of the N-factor model for parameter estimation.
 #'
 #'@param parameters a vector of parameter names of an N-factor model. Function \code{NFCP_parameters} is recommended.

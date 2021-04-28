@@ -1,4 +1,4 @@
-#' Forecast N-Factor Model Spot Prices
+#' Forecast the spot prices of an N-factor model
 #' @description Analytically forecast expected spot prices following the "true" process of a given n-factor stochastic model
 #'
 #'@param x_0 Initial values of the state vector.
@@ -111,7 +111,7 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
   return(saved_forecasts)
 }
 
-#'Forecast N-factor Model Futures Prices
+#'Forecast the futures prices of an N-factor model
 #'@description Analytically forecast future expected Futures prices under the risk-neutral version of a specified N-factor model.
 #'@param x_0 Initial values of the state vector.
 #'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
@@ -226,7 +226,7 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 }
 
 
-#'Simulate N-Factor Model Spot Prices
+#'Simulate spot prices of an N-factor model through Monte Carlo simulation
 #'
 #'@description Simulate risk-neutral price paths of an an N-factor commodity pricing model through Monte Carlo Simulation.
 #'
@@ -439,7 +439,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
   }
 
 
-#'Simulate N-Factor Model Futures Prices
+#'Simulate futures prices of an N-factor model through Monte Carlo simulation
 #'@description Simulate Futures price data with dynamics that follow the parameters of an N-factor model through Monte Carlo simulation.
 #'
 #'@param x_0 Initial values of the state vector.

@@ -1,6 +1,6 @@
 ###This is a wrapper to use the rgenoud optimization algorithm for parameter estimation:
 
-#' N-Factor Model Parameter Estimation through the Kalman Filter and Maximum Likelihood Estimation
+#' N-factor model parameter estimation through the Kalman filter and maximum likelihood estimation
 #'
 #'@description
 #'\loadmathjax

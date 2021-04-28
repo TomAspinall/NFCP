@@ -959,7 +959,7 @@ NFCP.Domains <- function(parameters,
 #' @usage data(SS.Oil)
 #'
 #'
-#' @keywords datasets
+#' @keywords datasets internal
 #'
 #'@description \code{SS.Oil} has been deprecated as of version 0.3.0. Please use the \code{SS_oil} data object instead
 #'

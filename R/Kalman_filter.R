@@ -1,4 +1,4 @@
-#'N-Factor Commodity Pricing Kalman Filter
+#'Filter an N-factor commodity pricing model though the Kalman filter
 #'
 #'@description
 #'\loadmathjax

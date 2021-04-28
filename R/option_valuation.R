@@ -1,4 +1,4 @@
-#'N-Factor Model American Put Option Pricing
+#'N-factor model American put option pricing
 #'
 #' @description Value American put options under the parameters of an N-factor model through the Least-Squares Monte Carlo (LSM) Simulation Method.
 #' This function is a wrapper to the 'LSM.AmericanOption' function of the 'LSMRealOptions' package.
@@ -137,7 +137,7 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
 
 
 
-#'N-Factor Model European Option Pricing
+#'N-factor ,odel European option pricing
 #'@description Value European Option Put and Calls under the parameters of an N-factor model.
 #'
 #'@param x_0 Initial values of the state vector.

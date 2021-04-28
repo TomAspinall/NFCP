@@ -1,5 +1,5 @@
 
-#'Crude Oil Term Structure Futures Data (1990 - 1995)
+#'Crude oil term structure futures data (1990 - 1995)
 #'
 #' @docType data
 #'
