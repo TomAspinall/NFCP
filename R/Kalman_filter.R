@@ -356,7 +356,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   if(N_ME > 1 && N_ME < ncol(log_futures)){
     if(is.null(ME_TTM)) stop("Multiple measurement error (ME) terms have been specified but the maturity terms of the measurement error (ME_TTM) have not.")
     if(length(ME_TTM) != N_ME) stop("Number of measurement error (ME) terms specified does not match the length of argument 'ME_TTM'")
-    if(max(futures_TTM) > max(ME_TTM)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
+    if(max(futures_TTM, na.rm = TRUE) > max(ME_TTM, na.rm = TRUE)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
   }
 
   ##GBM or MR Process?
@@ -435,6 +435,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
     Zt <- array(NA, dim = c(N_contracts, N_factors, N_obs))
     for(i in 1:N_factors) Zt[,i,] <- t(Z[,,i])
     d <- t(d)
+    H <- t(H)
     } else {
     Zt <- Z
     }

@@ -200,7 +200,7 @@
 NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE,
                                   Richardsons_extrapolation = TRUE, cluster = FALSE, Domains = NULL, ...){
 
-  time.0 <- proc.time()
+  time_0 <- proc.time()
 
   ##Standardize format:
   log_futures <- as.matrix(log_futures)
@@ -211,13 +211,12 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_ME = 1, ME_TTM =
   if(contract_data && !all(dim(log_futures) == dim(futures_TTM))) stop("log_futures and futures_TTM have different dimensions")
   if(!contract_data && length(futures_TTM)!=ncol(log_futures)) stop("Aggregate futures data, however ncol(log_futures) and length(futures_TTM) have different dimensions")
 
-  ME_TTM_used <- FALSE
+  ME_TTM_used <- N_ME > 1 && N_ME < ncol(log_futures)
   ## Have enough ME maturity terms been specified?
-  if(N_ME > 1 && N_ME < ncol(log_futures)){
-    ME_TTM_used <- TRUE
+  if(ME_TTM_used){
     if(is.null(ME_TTM)) stop("Multiple measurement error (ME) terms have been specified but the maturity terms of the measurement error (ME_TTM) have not.")
     if(length(ME_TTM) != N_ME) stop("Number of measurement error (ME) terms specified does not match the length of argument 'ME_TTM'")
-    if(max(futures_TTM) > max(ME_TTM)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
+    if(max(futures_TTM, na.rm = TRUE) > max(ME_TTM, na.rm = TRUE)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
   }
 
   ##Unknown Parameters:
@@ -225,11 +224,11 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_ME = 1, ME_TTM =
 
   cat("----------------------------------------------------------------
 Term Structure Estimation: \n")
-  cat(paste(length(parameters), "Unknown Parameters \n"))
+  cat(paste(length(parameters), "unknown parameters \n"))
   cat(paste(nrow(log_futures), "observations \n"))
   cat(paste(ncol(log_futures)), "futures contracts \n")
   if(ME_TTM_used){
-    cat(paste(length(ME_TTM), "maturity groupings used to consider the measurement error of observations \n"))
+    cat(paste(length(ME_TTM), "measurement error maturity groupings \n"))
   } else {
     cat("\n")
   }
@@ -246,13 +245,13 @@ Term Structure Estimation: \n")
   if(is.null(Domains)) Domains <- NFCP::NFCP_domains(parameters)
 
   ##Parallel Processing?
-  if(!any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cluster <- F
+  if(!any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cluster <- FALSE
 
   ##Run the Genetic Algorithm Parameter Estimation:
-  NFCP_output <- rgenoud::genoud(NFCP_Kalman_filter, nvars = length(parameters), parameter_names = parameters,
+  NFCP_output <- rgenoud::genoud(NFCP::NFCP_Kalman_filter, nvars = length(parameters), parameter_names = parameters,
                                log_futures = log_futures, dt = dt, futures_TTM = futures_TTM, ME_TTM = ME_TTM,
                                max = T, gr = gr, Domains = Domains,
-                               boundary.enforcement = 2, gradient.check = F, cluster = cluster, ...)
+                               boundary.enforcement = 2, gradient.check = FALSE, cluster = cluster, ...)
 
   ###Close the cluster:
   if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) parallel::stopCluster(cluster)
@@ -313,5 +312,5 @@ Term Structure Estimation: \n")
 
   return(c(NFCP_list,
            NFCP::NFCP_Kalman_filter(parameter_values = estimated_parameters, parameter_names = parameters, log_futures = log_futures, futures_TTM = futures_TTM, ME_TTM = ME_TTM,
-                                  dt = dt, verbose = TRUE)[-1], proc_time = list(proc.time() - time.0), list(genoud_value = NFCP_output)))
+                                  dt = dt, verbose = TRUE)[-1], proc_time = list(proc.time() - time_0), list(genoud_value = NFCP_output)))
 }
