@@ -2,7 +2,7 @@
 % Please edit documentation in R/option_valuation.R
 \name{European_option_value}
 \alias{European_option_value}
-\title{N-Factor Model European Option Pricing}
+\title{N-factor ,odel European option pricing}
 \usage{
 European_option_value(
   x_0,

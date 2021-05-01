@@ -329,11 +329,11 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
     parameter_names <- parameter_names[!parameter_names %in% "mu_star"]
   }
 
-
+  ## Named Parameter Vector:
   params <- parameter_values
   names(params) <- parameter_names
 
-  ## How many measurement errors are specified?
+  ## How many measurement errors (ME) are specified?
   N_ME <- max(which(paste0("ME_", 1:length(params)) %in% names(params) & sapply(params[paste0("ME_",1:length(params))], FUN = is.numeric) & !sapply(params[paste0("ME_",1:length(params))], FUN = is.na)))
 
   ## How many factors are specified?
@@ -352,23 +352,20 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   if(contract_data && !all(dim(log_futures) == dim(futures_TTM))) stop("log_futures and futures_TTM have different dimensions")
   if(!contract_data && length(futures_TTM)!=N_contracts) stop("Aggregate futures data, however ncol(log_futures) and length(futures_TTM) have different dimensions")
 
-  ## Have enough ME maturity terms been specified?
-  if(N_ME > 1 && N_ME < ncol(log_futures)){
+  ## Are we using ME maturity groupings?
+  inhomogeneous_H <- N_ME > 1 && N_ME < ncol(log_futures)
+
+  ## If so, have enough been specified?
+  if(inhomogeneous_H){
     if(is.null(ME_TTM)) stop("Multiple measurement error (ME) terms have been specified but the maturity terms of the measurement error (ME_TTM) have not.")
     if(length(ME_TTM) != N_ME) stop("Number of measurement error (ME) terms specified does not match the length of argument 'ME_TTM'")
     if(max(futures_TTM, na.rm = TRUE) > max(ME_TTM, na.rm = TRUE)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
   }
 
-  ##GBM or MR Process?
+  ##Is factor one a GBM or MR Process?
   GBM <- "mu" %in% names(params)
-
-  ###First factor GBM or MR?
-  if(GBM){
-    params["kappa_1"] <- 0
-    params["E"] <- 0
-  } else {
-    params["mu"] <- 0
-  }
+  if(GBM) zerome <- c("kappa_1", "E") else zerome <- "mu"
+  params[zerome] <- 0
 
   #x_t is our vector of state variables:
   x_t <- matrix(rep(0, N_factors))
@@ -378,25 +375,8 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   if("x_0_1" %in% names(params)) x_t <- matrix(sapply(1:N_factors, FUN = function(x) if(paste0("x_0_",x) %in% names(params)) params[paste0("x_0_",x)]))
 
 
-  #Things to calculate before the iteration:
-  d <- params["E"] + A_T(params, futures_TTM)
-
-  ##If Aggregate (Contract) Data, matrix Z is time (in)homogenous
-  if(contract_data){
-    Z <- array(NA, dim = c(N_obs, N_contracts, N_factors))
-    Z[,,1:N_factors] <- sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * futures_TTM))
-  } else {
-    Z <- as.matrix(sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * futures_TTM)))
-
-    if(N_contracts == 1) Z = t(as.matrix(sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * futures_TTM))))
-  }
-
-  #G:
-  G_t <- diag(N_factors)
-  diag(G_t) <- sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * dt))
-
   #c:
-  c_t <- matrix(c(params["mu"] * dt, rep(0, N_factors-1)))
+  c_t <- c(params["mu"] * dt, rep(0, N_factors-1))
 
   #Variance of omega:
   # P_t <- Q_t <- cov_func(params, dt)
@@ -404,68 +384,63 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   ## Diffuse assumption:
   P_t <- diag(100, N_factors)
 
-  # Step one - evaluate the measurement error matrix:
-  homogeneous_H <- TRUE
+  #G:
+  G_t <- diag(N_factors)
+  diag(G_t) <- sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * dt))
 
-  #Measurement Errors matrix:
-  H <- matrix(rep(0, N_contracts))
+  ## Adjust data into required format
+  futures_TTM <- t(futures_TTM)
+
+  Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(contract_data, N_obs,1)))
+  for(i in 1:N_factors) Zt[,i,] <- exp(- params[paste0("kappa_", i)] * futures_TTM)
+
+  ## Place data into required format:
+  dtT <- matrix(params["E"] + A_T(params, futures_TTM), nrow = N_contracts, ncol = ifelse(contract_data,N_obs,1))
+
+  # Measurement error - diagonal elements:
+  Ht <- matrix(rep(0, N_contracts), nrow = N_contracts, ncol = ifelse(inhomogeneous_H, N_obs, 1))
+
   ## Case 1 - Only one ME has been specified:
-  if(N_ME == 1) H[1:N_contracts] <- params["ME_1"]^2
+  if(N_ME == 1) Ht[1:N_contracts] <- params["ME_1"]^2
+
   ## Case 2 - an ME for every contract has been specified:
-  if(N_ME == N_contracts) H[1:N_contracts] <- sapply(1:N_ME, FUN = function(x) params[paste0("ME_",x)]^2)
+  if(N_ME == N_contracts) Ht[1:N_contracts] <- sapply(1:N_ME, FUN = function(x) params[paste0("ME_",x)]^2)
   ## Case 3 - Multiple ME have been specified, corresponding to particular maturity groupings:
-  if(!is.null(ME_TTM) && N_ME > 1 && N_ME < N_contracts){
-
-    # H is now time inhomogenous:
-    homogeneous_H <- FALSE
-
-    H <- matrix(NA, nrow = N_obs, ncol = N_contracts)
-
-    for(loop in length(ME_TTM):1) H[futures_TTM < ME_TTM[loop]] = params[paste0("ME_",loop)]^2
-  }
-  H[H<1.01e-10] <- 0
+  if(inhomogeneous_H) for(loop in N_ME:1) Ht[futures_TTM < ME_TTM[loop]] = params[paste0("ME_",loop)]^2
+  ## Zero out minimum values:
+  Ht[Ht<1.01e-10] <- 0
 
   if(debugging) verbose <- TRUE
   # -------------------------------------
-  ##If not verbose, run it with the fkf.SP function (faster):
+  ##Kalman filter in C (faster):
   if(!verbose){
 
-    ##These are required structures for the fkf.SP inputs:
-    if(contract_data){
-    Zt <- array(NA, dim = c(N_contracts, N_factors, N_obs))
-    for(i in 1:N_factors) Zt[,i,] <- t(Z[,,i])
-    d <- t(d)
-    H <- t(H)
-    } else {
-    Zt <- Z
-    }
       log_likelihood <- suppressWarnings(FKF.SP::fkf.SP(a0 = c(x_t),
                    P0 = P_t,
                    dt = c_t,
-                   ct = d,
+                   ct = dtT,
                    Tt = G_t,
                    Zt = Zt,
                    HHt = Q_t,
-                   GGt = H,
+                   GGt = Ht,
                    yt = t(log_futures)))
 
-    ## If The model was poorly specified, the log-likelihood returns NA. We need to return a heavily penalised score for the gradient function.
+    ## If The model was poorly specified, the log-likelihood returns NA. We need to return a heavily penalized score for the gradient function.
     return(ifelse(is.na(log_likelihood),stats::runif(1, -1.5e6, -1e6), log_likelihood))
   } else {
-    # ----------------------------------------------
+  # -------------------------------------
     # Kalman filter in R
 
-
-    #Variables to save:
+    #Verbose variables:
     save_X <- matrix(0, nrow = N_obs, ncol = N_factors)
     save_X_SD <- matrix(0, nrow = N_obs, ncol = N_factors)
     save_V <- matrix(NA, nrow = N_obs, ncol = ncol(log_futures))
     save_Y <- matrix(NA, nrow = N_obs, ncol = ncol(log_futures))
     rownames(save_X) <- rownames(save_X_SD) <- rownames(save_V) <- rownames(save_Y) <- rownames(log_futures)
 
+    #Debugging variables:
     if(debugging){
       max_obs <- max(rowSums(!is.na(log_futures)))
-
       save_P <- array(NA, dim = c(N_factors, N_factors, N_obs))
       save_F <- array(NA, dim = c(max_obs, max_obs, N_obs))
       save_K <- array(NA, dim = c(N_factors, max_obs, N_obs))
@@ -475,15 +450,6 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
     #Initialize
     log_likelihood <- 0
     I <- diag(N_factors)
-    converged <- FALSE
-
-    # H <- t(H)
-    H_t <- diag(H[,1])
-
-    if(!contract_data){
-      d_t <- d
-      Z_t <- Z
-    }
 
     #####BEGIN Kalman filter:
     for(t in 1:N_obs){
@@ -497,28 +463,18 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
       ##How many contracts are we observing this iteration?
       obs_contracts_t <- which(!is.na(log_futures[t,]))
       if(length(obs_contracts_t)>0){
+
         N_obs_contracts_t <- length(obs_contracts_t)
 
-      ##Time Inhomogeneous - Update:
-      if(contract_data){
+        ##Update matrices:
+        d_t <- matrix(dtT[obs_contracts_t,ifelse(contract_data, t, 1)])
+        Z_t <- matrix(Zt[obs_contracts_t,,ifelse(contract_data, t, 1)], ncol = N_factors)
 
-        #Step 1 - Calculate Required Values:
-
-        #d
-        d_t <- matrix(d[t,obs_contracts_t])
-
-        #Z:
-        Z_t <- as.matrix(Z[t,obs_contracts_t,])
-        if(length(obs_contracts_t)==1) Z_t <- t(Z[t,obs_contracts_t,])
-      }
         #Measurement Errors matrix:
         #Expectation of epsilon_t is 0
         #Variance    of epsilon_t is H
         H_t <- diag(N_obs_contracts_t)
-        diag(H_t) <- H[obs_contracts_t,ifelse(homogeneous_H, 1, t)]
-
-
-      if(contract_data || !converged){
+        diag(H_t) <- Ht[obs_contracts_t,ifelse(inhomogeneous_H, t, 1)]
 
         #Function of covariance matrix:
         F_t  <- Z_t %*% P_tp1 %*% t(Z_t) + H_t
@@ -527,20 +483,14 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
 
         ##Numeric Stability - Poorly Conditioned params:
         inverse_F_t <- try(solve(F_t))
-        if(is.na(det_F_t))                         stop("Negative determinant in Kalman filter Covariance matrix. Theta may be poorly specified.")
-        if(any(class(inverse_F_t) == "try-error")) stop("Singular Kalman filter Covariance Matrix. Theta may be poorly specified.")
+        if(is.na(det_F_t))                         stop("Negative determinant in Kalman filter Covariance matrix. Parameters may be poorly specified.")
+        if(any(class(inverse_F_t) == "try-error")) stop("Singular Kalman filter Covariance Matrix. Parameters may be poorly specified.")
 
         #Kalman Gain:
         K_t <- P_tp1 %*% t(Z_t) %*% inverse_F_t
         P_tp1 <- (I - K_t %*% Z_t) %*% P_tp1
 
-        ###Check if the values have converged, if so, we can increase the efficiency of the algorithm:
-        if(!converged && t > 3) converged <- abs(sum(P_tp1 - P_t)) < 1e-07
-
         P_t <- P_tp1
-        convergance_time <- t
-
-      }
 
         ##Measurement Equation:
         y_bar_t <- d_t + Z_t %*% x_tp1
@@ -558,9 +508,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
         log_likelihood <- sum(log_likelihood, - (1/2) * sum(N_obs_contracts_t * log(2*pi), det_F_t, t(v_t) %*% inverse_F_t %*% v_t))
         #-----------------------
 
-        ##Verbose Saving:
-
-        #Record our estimated variables
+        #Record estimated variables
         #Updated Error terms:
         y_tt <- d_t + Z_t %*% x_t
         v_tt <- y_tt - y_t
@@ -614,7 +562,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
 
     ###Volatility TSFit:
     if(contract_data) {
-      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[nrow(futures_TTM),], dt)
+      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[,nrow(futures_TTM)], dt)
     } else {
       Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM, dt) }
 

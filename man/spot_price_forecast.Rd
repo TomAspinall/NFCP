@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{spot_price_forecast}
 \alias{spot_price_forecast}
-\title{Forecast N-Factor Model Spot Prices}
+\title{Forecast the spot prices of an N-factor model}
 \usage{
 spot_price_forecast(x_0, parameters, t, percentiles = NULL)
 }

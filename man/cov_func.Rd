@@ -2,7 +2,7 @@
 % Please edit documentation in R/dependencies.R
 \name{cov_func}
 \alias{cov_func}
-\title{N-factor Covariance:}
+\title{N-factor model covariance:}
 \usage{
 cov_func(parameters, dt)
 }

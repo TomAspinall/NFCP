@@ -2,7 +2,7 @@
 % Please edit documentation in R/dependencies.R
 \name{NFCP_domains}
 \alias{NFCP_domains}
-\title{N-Factor MLE Search Boundaries}
+\title{N-Factor MLE search boundaries}
 \usage{
 NFCP_domains(
   parameters,

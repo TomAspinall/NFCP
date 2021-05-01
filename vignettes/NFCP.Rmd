@@ -160,6 +160,7 @@ SS_oil_2F <- NFCP_Kalman_filter(
  dt = SS_oil$dt,
  verbose = TRUE,
  debugging = TRUE)
+
 ```
 
 It's important to note that when 'verbose = TRUE', the Kalman filter iteration used by the 'NFCP_Kalman_filter' function does not use sequential processing and is a slower Kalman filter process not suited for parameter estimation.
@@ -182,6 +183,7 @@ SS_oil_2F_contracts <- NFCP_Kalman_filter(
  dt = SS_oil$dt,
  verbose = TRUE,
  debugging = TRUE)
+
 ```
 
 ## 4.3 Measurement Error of N-Factor Commodity Pricing Models:

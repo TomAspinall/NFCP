@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{spot_price_simulate}
 \alias{spot_price_simulate}
-\title{Simulate N-Factor Model Spot Prices}
+\title{Simulate spot prices of an N-factor model through Monte Carlo simulation}
 \usage{
 spot_price_simulate(
   x_0,

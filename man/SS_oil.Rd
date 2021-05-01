@@ -3,7 +3,7 @@
 \docType{data}
 \name{SS_oil}
 \alias{SS_oil}
-\title{Crude Oil Term Structure Futures Data (1990 - 1995)}
+\title{Crude oil term structure futures data (1990 - 1995)}
 \format{
 A \code{list} Containing eight objects:
 

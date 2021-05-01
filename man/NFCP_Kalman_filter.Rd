@@ -2,7 +2,7 @@
 % Please edit documentation in R/Kalman_filter.R
 \name{NFCP_Kalman_filter}
 \alias{NFCP_Kalman_filter}
-\title{N-Factor Commodity Pricing Kalman Filter}
+\title{Filter an N-factor commodity pricing model though the Kalman filter}
 \usage{
 NFCP_Kalman_filter(
   parameter_values,

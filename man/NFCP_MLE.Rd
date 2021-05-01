@@ -2,7 +2,7 @@
 % Please edit documentation in R/parameter_estimation.R
 \name{NFCP_MLE}
 \alias{NFCP_MLE}
-\title{N-Factor Model Parameter Estimation through the Kalman Filter and Maximum Likelihood Estimation}
+\title{N-factor model parameter estimation through the Kalman filter and maximum likelihood estimation}
 \usage{
 NFCP_MLE(
   log_futures,

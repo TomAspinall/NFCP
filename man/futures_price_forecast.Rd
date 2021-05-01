@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{futures_price_forecast}
 \alias{futures_price_forecast}
-\title{Forecast N-factor Model Futures Prices}
+\title{Forecast the futures prices of an N-factor model}
 \usage{
 futures_price_forecast(
   x_0,

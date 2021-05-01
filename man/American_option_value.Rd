@@ -2,7 +2,7 @@
 % Please edit documentation in R/option_valuation.R
 \name{American_option_value}
 \alias{American_option_value}
-\title{N-Factor Model American Put Option Pricing}
+\title{N-factor model American put option pricing}
 \usage{
 American_option_value(
   x_0,

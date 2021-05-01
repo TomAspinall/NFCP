@@ -2,7 +2,7 @@
 % Please edit documentation in R/simulations.R
 \name{futures_price_simulate}
 \alias{futures_price_simulate}
-\title{Simulate N-Factor Model Futures Prices}
+\title{Simulate futures prices of an N-factor model through Monte Carlo simulation}
 \usage{
 futures_price_simulate(
   x_0,

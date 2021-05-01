@@ -503,8 +503,6 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_TTM = NULL, verbose = TRUE){
 
   if(is.null(names(parameters))) stop("parameters must be a named vector. NFCP_parameters function is suggested")
-  # transposeme = FALSE
-
 
   ## Temporary
   if("mu_star" %in% names(parameters)){
@@ -514,14 +512,19 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
   }
 
   ##If it's a constant futures_TTM, develop the maturity matrix:
-  futures_TTM <- as.matrix(futures_TTM)
-  ##If a maturity matrix has been provided:
-  if(all(dim(futures_TTM) > 1)){
-    maturity_matrix <- futures_TTM
-    if(dim(maturity_matrix)[1]!=N_obs) stop("futures_TTM does not match number of observations")
+
+  futures_TTM <- t(as.matrix(futures_TTM))
+
+  Homogeneous_TTM <- any(dim(futures_TTM) == 1)
+
+  if(Homogeneous_TTM){
+    N_contracts <- length(futures_TTM)
+  } else {
+    if(dim(futures_TTM)[2]!=N_obs) stop("Dimension of 'futures_TTM' does not match number of observations")
+    N_contracts <- nrow(futures_TTM)
   }
 
-    GBM <- "mu" %in% names(parameters)
+    GBM <- any(c("mu", "mu_rn") %in% names(parameters))
 
     if(GBM){
       parameters["kappa_1"] <- 0
@@ -532,7 +535,6 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
 
     ###The highest sigma input would be our number of factors
     N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters) & sapply(parameters[paste0("sigma_",1:length(parameters))], FUN = is.numeric) & !sapply(parameters[paste0("sigma_",1:length(parameters))], FUN = is.na)))
-    N_contracts <- ncol(maturity_matrix)
     ## How many measurement errors are specified?
     N_ME <- max(which(paste0("ME_", 1:length(parameters)) %in% names(parameters) & sapply(parameters[paste0("ME_",1:length(parameters))], FUN = is.numeric) & !sapply(parameters[paste0("ME_",1:length(parameters))], FUN = is.na)))
 
@@ -546,41 +548,38 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     if(length(x_0) != N_factors) stop("Initial state vector length not equal to N factors")
 
     # Step one - evaluate the measurement error matrix:
-    homogeneous_H <- TRUE
+    inhomogeneous_H <- is.null(ME_TTM) && N_ME > 1 && N_ME < N_contracts
 
-    #Measurement Errors matrix:
-    H <- matrix(rep(0, N_contracts))
+    # Measurement error - diagonal elements:
+    Ht <- matrix(rep(0, N_contracts), nrow = N_contracts, ncol = ifelse(inhomogeneous_H, N_obs, 1))
+
     ## Case 1 - Only one ME has been specified:
-    if(N_ME == 1) H[1:N_contracts] <- parameters["ME_1"]^2
+    if(N_ME == 1) Ht[1:N_contracts] <- parameters["ME_1"]^2
+
     ## Case 2 - an ME for every contract has been specified:
-    if(N_ME == N_contracts) H[1:N_contracts] <- sapply(1:N_ME, FUN = function(x) parameters[paste0("ME_",x)]^2)
+    if(N_ME == N_contracts) Ht[1:N_contracts] <- sapply(1:N_ME, FUN = function(x) parameters[paste0("ME_",x)]^2)
     ## Case 3 - Multiple ME have been specified, corresponding to particular maturity groupings:
-    if(!is.null(ME_TTM) && N_ME > 1 && N_ME < N_contracts){
-
-      # H is now time inhomogenous:
-      homogeneous_H <- FALSE
-
-      H <- matrix(NA, nrow = N_obs, ncol = N_contracts)
-
-      for(loop in length(ME_TTM):1) H[futures_TTM < ME_TTM[loop]] = parameters[paste0("ME_",loop)]^2
-
-      H <- t(H)
-    }
-    H[H < 1.01e-10] <- 0
-    H[is.na(H)] <- 0
+    if(inhomogeneous_H) for(loop in N_ME:1) Ht[futures_TTM < ME_TTM[loop]] = parameters[paste0("ME_",loop)]^2
+    ## Zero out minimum values:
+    Ht[Ht<1.01e-10] <- 0
+    Ht[is.na(Ht)] <- 0
 
     X_t <- matrix(x_0)
 
     ##Discrete Time Steps:
 
     #Insantiate State Vectors ie. the outputs:
-    X <- matrix(0  , nrow = N_obs, ncol = N_factors)
-    Y <- matrix(0  , nrow = N_obs, ncol = N_contracts)
+    X <- matrix(0, nrow = N_obs, ncol = N_factors)
+    Y <- matrix(0, nrow = N_obs, ncol = N_contracts)
 
-    d <- A_T(parameters, maturity_matrix)
+    ## Place data into required format:
+    dtT <- matrix(A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,N_obs,1))
 
-    Z <- array(NA, dim = c(N_obs, N_contracts, N_factors))
-    Z[,,1:N_factors] <- sapply(1:N_factors, FUN = function(X) exp(- parameters[paste0("kappa_", X)] * maturity_matrix))
+    Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(Homogeneous_TTM, N_obs,1)))
+    for(i in 1:N_factors){
+      Zt[,i,] <- exp(- parameters[paste0("kappa_", i)] * futures_TTM)
+    }
+    Zt[is.na(Zt)] <- 1
 
     #Multivariate Normal observation - Transition Equation:
     omega <- MASS::mvrnorm(n = N_obs, mu = rep(0, N_factors), Sigma = cov_func(parameters, dt))
@@ -588,22 +587,15 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
 
     for(t in 1:N_obs){
 
-      # H_t <- diag(H[,ifelse(homogeneous_H, 1, t)])
-
       #Multivariate Normal observation - Measurement Equation:
-      # V <- MASS::mvrnorm(n = N_obs, mu = rep(0, N_contracts), Sigma = diag(H[,ifelse(homogeneous_H, 1, t)]))
-      v_t <- MASS::mvrnorm(n = 1, mu = rep(0, N_contracts), Sigma = diag(H[,ifelse(homogeneous_H, 1, t)]))
+      v_t <- rnorm(N_contracts) * Ht[,ifelse(inhomogeneous_H, t, 1)]
 
       #Measurement Equation:
       #y = d + Z * x_t + v_t
       #d
-      d_t <- matrix(d[t,])
-
-      #Z:
-      Z_t <- Z[t,,]
-
-      #Simulated Measurement Error:
-      # v_t <- V[t,]
+      ##Update matrices:
+      d_t <- matrix(dtT[,ifelse(Homogeneous_TTM, t, 1)])
+      Z_t <- matrix(Zt[,,ifelse(Homogeneous_TTM, t, 1)], ncol = N_factors)
 
       Y_t <- parameters["E"] + d_t + Z_t %*% X_t + v_t
 
@@ -619,8 +611,7 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
         #x_t = c + G * x_tm1 + omega
         c_t <- matrix(c(parameters["mu"] * dt, rep(0, N_factors-1)))
         #G:
-        G_t <- diag(N_factors)
-        diag(G_t) <- sapply(1:N_factors, FUN = function(X) exp(- parameters[paste0("kappa_", X)] * dt))
+        G_t <- diag(sapply(1:N_factors, FUN = function(X) exp(- parameters[paste0("kappa_", X)] * dt)))
 
         X_t <- c_t + G_t %*% X_t + omega_t
 
@@ -629,7 +620,7 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     X_output <- X
     Y_output <- exp(Y)
     spot_prices <- as.matrix(exp(rowSums(parameters["E"] + X)))
-    rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- rownames(maturity_matrix)
+    rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- rownames(futures_TTM)
 
     colnames(spot_prices) <- "Spot"
 

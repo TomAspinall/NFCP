@@ -2,7 +2,7 @@
 % Please edit documentation in R/dependencies.R
 \name{stitch_contracts}
 \alias{stitch_contracts}
-\title{Stitch Futures Contracts}
+\title{Stitch futures contracts}
 \usage{
 stitch_contracts(
   futures,
@@ -31,12 +31,12 @@ stitch_contracts(
 
 \tabular{ll}{
 
-\code{Prices} \tab A data frame of Stitched futures prices. Each row represents an observation of the specified contracts. \cr
+\code{prices} \tab A data frame of Stitched futures prices. Each row represents an observation of the specified contracts. \cr
 
-\code{Maturities} \tab A data frame of the time-to-maturity of observed futures prices. Each row represents an observation of the
+\code{maturities} \tab A data frame of the time-to-maturity of observed futures prices. Each row represents an observation of the
 specified contracts. Returned only when \bold{Method 1} is used (see \bold{Details})  and \code{verbose = T}. \cr
 
-\code{Tickers} \tab  A data frame of the named columns of observed futures prices (e.g. contract tickers). Returned only when \code{Futures} or \code{maturity_matrix} have named columns and \code{verbose = T}. \cr
+\code{tickers} \tab  A data frame of the named columns of observed futures prices (e.g. contract tickers). Returned only when \code{Futures} or \code{maturity_matrix} have named columns and \code{verbose = T}. \cr
 }
 }
 \description{
