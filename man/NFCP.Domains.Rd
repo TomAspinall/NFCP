@@ -24,11 +24,11 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-NFCP.Domains(names(SS_oil$two_factor))
+output <- NFCP.Domains(names(SS_oil$two_factor))
 
 ## ->
 
-NFCP_domains(names(SS_oil$two_factor))
+output <- NFCP_domains(names(SS_oil$two_factor))
 
 }
 \keyword{internal}

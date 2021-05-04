@@ -200,10 +200,6 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
   ###Take risk-premiums and volatility into account:
   futures_price_forecast <- futures_price_forecast + A_T(parameters, futures_TTM-t)
 
-  ###Instantaneous Volatility:
-  var.futures_prices <- rep(0, length(futures_TTM))
-  for(i in 1:length(futures_TTM)) var.futures_prices[i] <- sum(cov_func(parameters, futures_TTM[i]))
-
   if(!is.null(percentiles)){
 
     if(min(percentiles)<0 || max(percentiles) > 1) stop("percentiles are limited between zero and one")
@@ -212,8 +208,12 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 
     output <- matrix(futures_price_forecast, nrow = length(futures_TTM), ncol = length(percentiles))
 
+    ###Instantaneous Volatility:
+    var.futures_prices <- rep(0, length(futures_TTM))
+    for(i in 1:length(futures_TTM)) var.futures_prices[i] <- sqrt(sum(cov_func(parameters, futures_TTM[i])))
+
     for(i in 1:length(percentiles)){
-      output[,i] <-  output[,i] + sqrt(var.futures_prices) * stats::qnorm(percentiles[i])
+      output[,i] <-  output[,i] + var.futures_prices * stats::qnorm(percentiles[i])
     }
     futures_price_forecast <- output
     colnames(futures_price_forecast) <- percentiles
@@ -494,7 +494,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 #'##using a rolling-window of measurement errors:
 #'
 #'simulated_futures_prices <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
-#'                                                   parameters = SS_2F,
+#'                                                   parameters = SS_oil$two_factor,
 #'                                                   dt = SS_oil$dt,
 #'                                                   N_obs = nrow(SS_oil$contracts),
 #'                                                   futures_TTM = SS_oil$contract_maturities,
@@ -573,9 +573,9 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     Y <- matrix(0, nrow = N_obs, ncol = N_contracts)
 
     ## Place data into required format:
-    dtT <- matrix(A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,N_obs,1))
+    dtT <- matrix(A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,1,N_obs))
 
-    Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(Homogeneous_TTM, N_obs,1)))
+    Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(Homogeneous_TTM,1, N_obs)))
     for(i in 1:N_factors){
       Zt[,i,] <- exp(- parameters[paste0("kappa_", i)] * futures_TTM)
     }
@@ -588,14 +588,14 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     for(t in 1:N_obs){
 
       #Multivariate Normal observation - Measurement Equation:
-      v_t <- rnorm(N_contracts) * Ht[,ifelse(inhomogeneous_H, t, 1)]
+      v_t <- stats::rnorm(N_contracts) * Ht[,ifelse(inhomogeneous_H, t, 1)]
 
       #Measurement Equation:
       #y = d + Z * x_t + v_t
       #d
       ##Update matrices:
-      d_t <- matrix(dtT[,ifelse(Homogeneous_TTM, t, 1)])
-      Z_t <- matrix(Zt[,,ifelse(Homogeneous_TTM, t, 1)], ncol = N_factors)
+      d_t <- matrix(dtT[,ifelse(Homogeneous_TTM, 1, t)])
+      Z_t <- matrix(Zt[,,ifelse(Homogeneous_TTM, 1, t)], ncol = N_factors)
 
       Y_t <- parameters["E"] + d_t + Z_t %*% X_t + v_t
 
@@ -620,7 +620,8 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     X_output <- X
     Y_output <- exp(Y)
     spot_prices <- as.matrix(exp(rowSums(parameters["E"] + X)))
-    rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- rownames(futures_TTM)
+
+    if(length(colnames(futures_TTM)) == length(rownames(Y_output))) rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- colnames(futures_TTM)
 
     colnames(spot_prices) <- "Spot"
 
@@ -633,4 +634,4 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
       return(Y_output)
     }
 
-  }
+  F}

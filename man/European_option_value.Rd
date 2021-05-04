@@ -2,12 +2,11 @@
 % Please edit documentation in R/option_valuation.R
 \name{European_option_value}
 \alias{European_option_value}
-\title{N-factor ,odel European option pricing}
+\title{N-factor model European option pricing}
 \usage{
 European_option_value(
   x_0,
   parameters,
-  t,
   futures_maturity,
   option_maturity,
   K,
@@ -19,9 +18,7 @@ European_option_value(
 \arguments{
 \item{x_0}{Initial values of the state vector.}
 
-\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP.Parameters} is recommended.}
-
-\item{t}{Time, in years, when the European option is valued.}
+\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
 \item{futures_maturity}{Time, in years, when the underlying futures contract matures.}
 
@@ -121,7 +118,7 @@ Tt <- 1
 K <- 20
 ### Calculate 'put' option price:
 European_option_value(x_0 = log(S_0), parameters = c(mu_rn = rf, sigma_1 = S_sigma),
-                     t = Tt, futures_maturity = Tt, option_maturity = 1,
+                     futures_maturity = Tt, option_maturity = 1,
                      K = K, r = rf, call = FALSE, verbose = TRUE)
 
 ##Example 2 - A European call option under a two-factor crude oil model:
@@ -131,14 +128,13 @@ European_option_value(x_0 = log(S_0), parameters = c(mu_rn = rf, sigma_1 = S_sig
 Schwartz_Smith_oil <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
                                         parameter_names = names(SS_oil$two_factor),
                                         log_futures = log(SS_oil$stitched_futures),
-                                        dt = SS.Oil$dt,
+                                        dt = SS_oil$dt,
                                         futures_TTM = SS_oil$stitched_TTM,
                                         verbose = TRUE)
 
 ##Step 2 - Calculate 'call' option price:
 European_option_value(x_0 = Schwartz_Smith_oil$x_t,
                      parameters = SS_oil$two_factor,
-                     t = 1,
                      futures_maturity = 1,
                      option_maturity = 1,
                      K = 20,

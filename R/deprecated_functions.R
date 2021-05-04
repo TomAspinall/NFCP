@@ -1,4 +1,347 @@
 
+#'N-Factor Commodity Pricing Kalman Filter
+#'
+#' @description
+#' `r lifecycle::badge("deprecated")`
+#'
+#' This function was deprecated due to a change in the name of the function to adhere to the tidyverse style guide.
+#'
+#'@examples
+#'
+#'output <- NFCP.Kalman.filter(
+#'  parameter.values = SS.Oil$Two.Factor,
+#'  parameters = names(SS.Oil$Two.Factor),
+#'  log.futures = log(SS_oil$stitched_futures),
+#'  TTM = SS_oil$stitched_TTM,
+#'  dt = SS_oil$dt,
+#'  verbose = FALSE)
+#'
+#'## ->
+#'
+#'output <- NFCP_Kalman_filter(
+#'parameter_values = SS_oil$two_factor,
+#'parameter_names = names(SS_oil$two_factor),
+#'log_futures = log(SS_oil$stitched_futures),
+#'futures_TTM = SS_oil$stitched_TTM,
+#'dt = SS_oil$dt,
+#'verbose = FALSE)
+#'
+#'@keywords internal
+#'@export
+NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM, verbose = FALSE, debugging = FALSE){
+
+  #warning deprecation:
+  .Deprecated(msg = "'NFCP.Kalman.filter()' was deprecated in NFCP 0.3.0. \n Please use 'NFCP_Kalman_filter()' instead.\n In addition, the following arguments have been renamed:\n
+'parameter.values' -> 'parameter_values'
+'parameters' -> 'parameter_names'
+'TTM' -> 'futures_TTM'
+'log.futures' -> 'log_futures' \n
+The following outputs have also been renamed: \n
+'X.t' -> 'x_t'
+'Filtered.Error' -> 'filtered_error'
+'TSFit.Error' -> 'TSfit_error'
+'TSFit.Volatility' -> 'TSfit_volatility'
+'d' -> 'd_t'
+'Z' -> 'Z_t'
+'H' -> 'H_t'
+")
+
+  # output <- NFCP_Kalman_filter(parameter.values, parameters, log.futures, dt, TTM, verbose, debugging)
+  #
+  # if(verbose || debugging){
+  #   if(debugging){
+  #     names(output) <- c("LL", "X.t", "X", "Y", "V", "Filtered.Error", "TSFit.Error", "TSFit.Volatility", "LL_t", "P_t", "F_t", "K_t", "d", "Z", "G_t", "c_t", "Q_t", "H")
+  #   } else {
+  #     names(output) <- c("LL", "X.t", "X", "Y", "V", "Filtered.Error", "TSFit.Error", "TSFit.Volatility")
+  #   }
+  #
+  # }
+  #
+  # return(output)
+
+  if(debugging) verbose <- TRUE
+
+  params <- parameter.values
+  names(params) <- parameters
+
+  ##Standardize format:
+  log.futures <- as.matrix(log.futures)
+  TTM <- as.matrix(TTM)
+
+  ## "Contract" data or "Aggregate" Data?
+  Contract.Data <- all(dim(TTM)>1)
+  if(Contract.Data && !all(dim(log.futures) == dim(TTM))) stop("Observations and Maturity matrix have different dimensions")
+  if(!Contract.Data && length(TTM)!=ncol(log.futures)) stop("Number of observations does not equal number of time homogeneous TTM's")
+
+  ##GBM or MR Process?
+  GBM <- "mu" %in% names(params)
+
+  ###First factor GBM or MR?
+  if(GBM){
+    params["kappa_1"] <- 0
+    params["E"] <- 0
+  } else {
+    params["mu"] <- 0
+  }
+  if(!"sigma.contracts" %in% names(params)) if(!paste0("sigma.contract_", ncol(log.futures)) %in% names(params)) stop("Not enough Individual Contract white noises have been specified")
+
+  ###The highest sigma input would be our number of factors
+  N.factors <- max(which(paste0("sigma_", 1:length(params)) %in% names(params) & sapply(params[paste0("sigma_",1:length(params))], FUN = is.numeric) & !sapply(params[paste0("sigma_",1:length(params))], FUN = is.na)))
+
+  ##Dimensions of observations:
+  N.obs <- nrow(log.futures)
+  N.contracts <- ncol(log.futures)
+
+  #X_t is our vector of state variables:
+  X_t <- matrix(rep(0, N.factors))
+  #This is our best estimate if we're not specifying anything:
+  if(GBM) X_t[1] <- log.futures[1,1]
+  #But if we are:
+  if("X.0_1" %in% names(params)) X_t <- matrix(sapply(1:N.factors, FUN = function(x) if(paste0("X.0_",x) %in% names(params)) params[paste0("X.0_",x)]))
+
+
+  #Things to calculate before the iteration:
+  d <- params["E"] + A_T(params, TTM)
+
+  ##If Aggregate (Contract) Data, matrix Z is time (in)homogenous
+  if(Contract.Data){
+    Z <- array(NA, dim = c(N.obs, N.contracts, N.factors))
+    Z[,,1:N.factors] <- sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM))
+  } else {
+    Z <- as.matrix(sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM)))
+
+    if(N.contracts == 1) Z = t(as.matrix(sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM))))
+  }
+
+
+  #G:
+  G_t <- diag(N.factors)
+  diag(G_t) <- sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * dt))
+
+  #c:
+  c_t <- matrix(c(params["mu"] * dt, rep(0, N.factors-1)))
+
+  #Variance of omega:
+  # P_t <- Q_t <- cov_func(params, dt)
+  Q_t <- cov_func(params, dt)
+  P_t <- diag(100, N.factors)
+
+  #Measurement Errors matrix:
+  H <- diag(N.contracts)
+  if("sigma.contracts" %in% names(params)){
+    diag(H) <- params["sigma.contracts"]^2
+  } else {
+    if(!paste0("sigma.contract_", ncol(log.futures)) %in% names(params)) stop("Not enough Individual Contract white noises have been specified")
+    diag(H) <- sapply(1:N.contracts, FUN = function(x) params[paste0("sigma.contract_",x)]^2)
+  }
+
+
+  ##If not verbose, run it with the fkf.SP function (faster):
+  if(!verbose){
+
+    ##These are required structures for the fkf.SP inputs:
+    if(Contract.Data){
+      Zt <- array(NA, dim = c(N.contracts, N.factors, N.obs))
+      for(i in 1:N.factors) Zt[,i,] <- t(Z[,,i])
+      d <- t(d)
+    } else {
+      Zt <- Z
+    }
+    log_likelihood <- suppressWarnings(FKF.SP::fkf.SP(a0 = c(X_t),
+                                                      P0 = P_t,
+                                                      dt = c_t,
+                                                      ct = d,
+                                                      Tt = G_t,
+                                                      Zt = Zt,
+                                                      HHt = Q_t,
+                                                      GGt = as.matrix(diag(H)),
+                                                      yt = t(log.futures)))
+
+    ## If The model was poorly specified, the log-likelihood returns NA. We need to return a heavily penalised score for the gradient function.
+    return(ifelse(is.na(log_likelihood),stats::runif(1, -1.5e6, -1e6), log_likelihood))
+  } else {
+    ##Kalman filter in R
+
+    #Variables to save:
+    save_X <- matrix(0, nrow = N.obs, ncol = N.factors)
+    save_X_SD <- matrix(0, nrow = N.obs, ncol = N.factors)
+    save_V <- matrix(NA, nrow = N.obs, ncol = ncol(log.futures))
+    save_Y <- matrix(NA, nrow = N.obs, ncol = ncol(log.futures))
+    rownames(save_X) <- rownames(save_X_SD) <- rownames(save_V) <- rownames(save_Y) <- rownames(log.futures)
+
+    if(debugging){
+      max.obs <- max(rowSums(!is.na(log.futures)))
+
+      save_P <- array(NA, dim = c(N.factors, N.factors, N.obs))
+      save_F <- array(NA, dim = c(max.obs, max.obs, N.obs))
+      save_K <- array(NA, dim = c(N.factors, max.obs, N.obs))
+      LL_t <- rep(0, N.obs)
+    }
+
+    #Initialize
+    log_likelihood <- 0
+    I <- diag(N.factors)
+    converged <- FALSE
+
+    if(!Contract.Data){
+      d_t <- d
+      Z_t <- Z
+    }
+
+    #####BEGIN Kalman filter:
+    for(t in 1:N.obs){
+
+      ##Transition Equation:
+      X_tp1 <- c_t + G_t %*% X_t
+
+      ##Covariance Transition Equation:
+      P_tp1 <- G_t %*% P_t %*% t(G_t) + Q_t
+
+      ##How many contracts are we observing this iteration?
+      Observed.Contracts <- which(!is.na(log.futures[t,]))
+      if(length(Observed.Contracts)>0){
+        N.Observed.contracts <- length(Observed.Contracts)
+
+        ##Time Inhomogeneous - Update:
+        if(Contract.Data){
+          #Measurement Errors matrix:
+          #Expectation of epsilon_t is 0
+          #Variance    of epsilon_t is H
+          H <- diag(N.Observed.contracts)
+          if("sigma.contracts" %in% names(params)){
+            diag(H) <- params["sigma.contracts"]^2
+          } else {
+            diag(H) <- sapply(Observed.Contracts, FUN = function(x) params[paste0("sigma.contract_",x)]^2)
+            ##If the model's estimated something to push it to zero, set it to zero:
+            diag(H)[which(diag(H)<1.01e-10)] <- 0
+          }
+
+          #Step 1 - Calculate Required Values:
+
+          #d
+          d_t <- matrix(d[t,Observed.Contracts])
+
+          #Z:
+          Z_t <- as.matrix(Z[t,Observed.Contracts,])
+          if(length(Observed.Contracts)==1) Z_t <- t(Z[t,Observed.Contracts,])
+        }
+
+        if(Contract.Data || !converged){
+
+          #Function of covariance matrix:
+          F_t  <- Z_t %*% P_tp1 %*% t(Z_t) + H
+
+          det_F_t <- suppressWarnings(log(det(F_t)))
+
+          ##Numeric Stability - Poorly Conditioned params:
+          inverse_F_t <- try(solve(F_t))
+          if(is.na(det_F_t))                         stop("Negative determinant in Kalman filter Covariance matrix. Theta may be poorly specified.")
+          if(any(class(inverse_F_t) == "try-error")) stop("Singular Kalman filter Covariance Matrix. Theta may be poorly specified.")
+
+          #Kalman Gain:
+          K_t <- P_tp1 %*% t(Z_t) %*% inverse_F_t
+          P_tp1 <- (I - K_t %*% Z_t) %*% P_tp1
+
+          ###Check if the values have converged, if so, we can increase the efficiency of the algorithm:
+          if(!converged && t > 3) converged <- abs(sum(P_tp1 - P_t)) < 1e-07
+
+          P_t <- P_tp1
+          convergance_time <- t
+
+        }
+
+        ##Measurement Equation:
+        y_bar_t <- d_t + Z_t %*% X_tp1
+        #Actual Futures Prices:
+        y_t <- as.matrix(log.futures[t,Observed.Contracts])
+        #Prediction Error:
+        v_t <- y_t - y_bar_t
+        #Correction based upon prediction error:
+        X_tp1 <- X_tp1 + K_t %*% v_t
+        ###Update, iteration begins anew:
+        X_t <- X_tp1
+        P_t <- P_tp1
+
+        #Update Concurrent Log Likelihood of Observations:
+        log_likelihood <- sum(log_likelihood, - (1/2) * sum(N.Observed.contracts * log(2*pi), det_F_t, t(v_t) %*% inverse_F_t %*% v_t))
+        #-----------------------
+
+        ##Verbose Saving:
+
+        #Record our estimated variables
+        #Updated Error terms:
+        y_tt <- d_t + Z_t %*% X_t
+        v_tt <- y_tt - y_t
+
+        save_X[t,] <- X_t
+        save_X_SD[t,] <- diag(P_t)
+        save_Y[t,Observed.Contracts] <- y_tt
+        save_V[t,Observed.Contracts] <- v_tt
+        log_likelihood_result <- log_likelihood
+        if(debugging){
+
+          save_P[,,t] <- P_t
+          save_F[1:N.Observed.contracts,1:N.Observed.contracts,t] <- F_t
+          save_K[,1:N.Observed.contracts,t] <- K_t
+
+          LL_t[t] <- log_likelihood
+        }
+      }
+    }
+
+    #Final observations, for forecasting purposes:
+    X.t <- c(X_t)
+    names(X.t) <- paste0("X.", 1:N.factors, "_t")
+
+    ####Term Structure Analysis:
+    #Save the filtered Observations:
+    Y_output <- exp(cbind(params["E"] + rowSums(save_X),save_Y))
+    if(!is.null(colnames(log.futures))) colnames(Y_output) <- c("filtered Spot", colnames(log.futures))
+    colnames(save_X) <- colnames(save_X_SD) <- paste("Factor", 1:N.factors)
+    rownames(Y_output) <- rownames(save_X)
+
+    ###Term Structure Fit:
+    Term_Structure_Fit <- matrix(0, nrow = 4, ncol = ncol(log.futures))
+
+    ##Mean Error:
+    Term_Structure_Fit[1,] <- colMeans(save_V, na.rm = TRUE)
+    ##Mean Absolute Error
+    Term_Structure_Fit[2,] <- colMeans(abs(save_V), na.rm = TRUE)
+    ##SD of Error:
+    Term_Structure_Fit[3,] <- apply(save_V, MARGIN = 2, FUN = function(x) stats::sd(x, na.rm = TRUE))
+    ##RMSE of each contract:
+    Term_Structure_Fit[4,] <- sqrt(colMeans(save_V^2, na.rm = TRUE))
+
+    rownames(Term_Structure_Fit) <- c("Mean Error", "Mean Absolute Error", "SD Error", "RMSE")
+    colnames(Term_Structure_Fit) <- colnames(save_V) <- colnames(log.futures)
+
+    ### Term structure fit to all observations:
+    Filtered_Error <- c(`High Bias` = mean(save_V[save_V > 0], na.rm = TRUE), `Low Bias` =  mean(save_V[save_V < 0], na.rm = TRUE), `Bias` = mean(save_V, na.rm = TRUE),
+                        `RMSE` = sqrt(mean(save_V^2, na.rm = TRUE)))
+
+
+    ###Volatility TSFit:
+    if(Contract.Data) {
+      Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM[nrow(TTM),], dt)
+    } else {
+      Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM, dt) }
+
+
+    ##Verbose List
+    output = list(LL = log_likelihood, X.t = X.t, X = save_X, Y = Y_output,
+                  V = save_V, Filtered.Error = Filtered_Error, TSFit.Error = Term_Structure_Fit, TSFit.Volatility = Volatility_TSFit)
+
+    ##Debugging List:
+    if(debugging) output <- c(output, list(LL_t = LL_t, P_t = save_P, F_t = save_F, K_t = save_K, d = d, Z = Z, G_t = G_t, c_t = c_t, Q_t = Q_t, H = H))
+
+    #Return Output value:
+    return(output)
+  }
+}
+
+
+
+
 #'Volatility Term Structure of futures returns
 #'
 #' @description
@@ -84,7 +427,7 @@ TSFit.Volatility <- function(parameters, Futures, TTM, dt){
 #'
 #' @examples
 #'
-#'American.Option.Value(X.0 = c(3,0),
+#'output <- American.Option.Value(X.0 = c(3,0),
 #'                      parameters = SS_oil$two_factor,
 #'                      n = 1e2,
 #'                      t = 1,
@@ -97,10 +440,10 @@ TSFit.Volatility <- function(parameters, Futures, TTM, dt){
 #'
 #'## ->
 #'
-#'American_option_value(x_0 = c(3,0),
+#'output <- American_option_value(x_0 = c(3,0),
 #'                      parameters = SS_oil$two_factor,
 #'                      N_simulations = 1e2,
-#'                      t = 1,
+#'                      option_maturity = 1,
 #'                      dt = 1/12,
 #'                      K = 20,
 #'                      r = 0.05,
@@ -115,7 +458,7 @@ American.Option.Value <- function(X.0, parameters, n, t, dt, K, r, orthogonal = 
   .Deprecated(msg = "'American.Option.Value()' was deprecated in NFCP 0.3.0. \n Please use 'American_option_value()' instead. \n In addition, the following arguments have been renamed: \n
 'X.0' -> 'x_0'")
 
-  American_option_value(x_0 = X.0, parameters = parameters, N_simulations = n, t = t, dt = dt, K = K, r = r, orthogonal = orthogonal, degree = degree, verbose = verbose, debugging = debugging)
+  American_option_value(x_0 = X.0, parameters = parameters, N_simulations = n, option_maturity = t, dt = dt, K = K, r = r, orthogonal = orthogonal, degree = degree, verbose = verbose, debugging = debugging)
 
 
 }
@@ -131,7 +474,7 @@ American.Option.Value <- function(X.0, parameters, n, t, dt, K, r, orthogonal = 
 #' @examples
 #'
 #'##Step 2 - Calculate 'call' option price:
-#' European.Option.Value(X.0 = c(3,0),
+#'output <-  European.Option.Value(X.0 = c(3,0),
 #'                       parameters = SS.Oil$Two.Factor,
 #'                       t = 1,
 #'                       TTM = 1,
@@ -142,9 +485,8 @@ American.Option.Value <- function(X.0, parameters, n, t, dt, K, r, orthogonal = 
 #'
 #'## ->
 #'
-#'European_option_value(x_0 = c(3,0),
+#'output <- European_option_value(x_0 = c(3,0),
 #'                      parameters = SS_oil$two_factor,
-#'                      t = 1,
 #'                      futures_maturity = 1,
 #'                      option_maturity = 1,
 #'                      K = 20,
@@ -309,12 +651,12 @@ European.Option.Value <- function(X.0, parameters, t, TTM, K, r, call, verbose =
 #'  max.generations = 0, solution.tolerance = 10)
 #'
 #'## ->
-#'NFCP_MLE(
+#'output <- NFCP_MLE(
 #'####Arguments
 #'log_futures = log(SS_oil$contracts)[1:20,1:5],
 #'dt = SS_oil$dt,
 #'futures_TTM= SS_oil$contract_maturities[1:20,1:5],
-#'fixed_ME = TRUE,
+#'N_ME = 1,
 #'N_factors = 1, GBM = TRUE,
 #'####Genoud arguments:
 #'hessian = TRUE,
@@ -333,7 +675,7 @@ NFCP.MLE <- function(log.futures, dt, TTM, N.factors, GBM = TRUE, S.Constant = T
 'log.futures' -> 'log_futures'
 'TTM' -> 'futures_TTM'
 'N.factors' -> 'N_factors'
-'S.Constant' -> 'fixed_ME'
+'S.Constant' -> 'N_ME'
 'Estimate.Initial.State' -> 'estimate_initial_states'
 'Richardsons.Extrapolation' -> 'Richardsons_extrapolation' \n
 The following outputs have also been renamed: \n
@@ -464,14 +806,14 @@ The following outputs have also been renamed: \n
 #'
 #'@examples
 #'
-#'Spot.Price.Forecast(X.0 = c(3,0),
+#'output <- Spot.Price.Forecast(X.0 = c(3,0),
 #'                   parameters = SS_oil$two_factor,
 #'                   t = seq(0,9,1/12),
 #'                   Percentiles = c(0.1, 0.9))
 #'
 #' ## ->
 #'
-#'spot_price_forecast(x_0 = c(3,0),
+#'output <- spot_price_forecast(x_0 = c(3,0),
 #'                    parameters = SS_oil$two_factor,
 #'                    t = seq(0,9,1/12),
 #'                    percentiles = c(0.1, 0.9))
@@ -497,7 +839,7 @@ Spot.Price.Forecast <- function(X.0, parameters, t, Percentiles = NULL){
 #'
 #' @examples
 #'
-#'Futures.Price.Forecast(X.0 = c(3,0),
+#'output <- Futures.Price.Forecast(X.0 = c(3,0),
 #'                      parameters = SS.Oil$Two.Factor,
 #'                      t = 0,
 #'                      TTM = seq(0,9,1/12),
@@ -505,7 +847,7 @@ Spot.Price.Forecast <- function(X.0, parameters, t, Percentiles = NULL){
 #'
 #'## ->
 #'
-#'futures_price_forecast(x_0 = c(3,0),
+#'output <- futures_price_forecast(x_0 = c(3,0),
 #'                       parameters = SS_oil$two_factor,
 #'                       t = 0,
 #'                       futures_TTM = seq(0,9,1/12),
@@ -533,7 +875,7 @@ Futures.Price.Forecast <- function(X.0, parameters, t = 0, TTM = 1:10, Percentil
 #'
 #'@examples
 #'
-#'Spot.Price.Simulate(
+#'output <- Spot.Price.Simulate(
 #'X.0 = c(3,0),
 #'parameters = SS.Oil$Two.Factor,
 #'t = 1,
@@ -544,7 +886,7 @@ Futures.Price.Forecast <- function(X.0, parameters, t = 0, TTM = 1:10, Percentil
 #'
 #'## ->
 #'
-#'spot_price_simulate(
+#'output <- spot_price_simulate(
 #'  x_0 = c(3,0),
 #'  parameters = SS_oil$two_factor,
 #'  t = 1,
@@ -571,7 +913,7 @@ theoutput <-  spot_price_simulate(X.0, parameters, t, dt, n, antithetic, verbose
 
 if(!verbose) return(theoutput)
 
-names(theoutput) <- c("State_variables", "Prices")
+names(theoutput) <- c("State_Variables", "Prices")
 return(theoutput)
 
 }
@@ -585,18 +927,18 @@ return(theoutput)
 #'
 #'@examples
 #'
-#'Futures.Price.Simulate(X.0 = c(log(SS.Oil$Spot[1,1]), 0),
-#'                      parameters = SS.Oil.Two.Factor,
+#'output <- Futures.Price.Simulate(X.0 = c(log(SS.Oil$Spot[1,1]), 0),
+#'                      parameters = SS.Oil$Two.Factor,
 #'                      dt = SS.Oil$dt,
-#'                      N.obs = nrow(SS.Oil$Contracts),
-#'                      TTM = SS.Oil$Contract.Maturities)
+#'                      N.obs = nrow(SS.Oil$Stitched.Futures),
+#'                      TTM = SS.Oil$Stitched.TTM)
 #'
 #'## ->
 #'
-#'futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
+#'output <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
 #'                      parameters = SS_oil$two_factor,
 #'                      dt = SS_oil$dt,
-#'                      n_obs = nrow(SS_oil$stitched_futures),
+#'                      N_obs = nrow(SS_oil$stitched_futures),
 #'                      futures_TTM = SS_oil$stitched_TTM)
 #'@keywords internal
 #'@export
@@ -739,7 +1081,7 @@ The following outputs have also been renamed: \n
 #' This function was deprecated due to a change in the name of the function to adhere to the tidyverse style guide.
 #'
 #'@examples
-#'NFCP.Parameters(N.factors = 2,
+#'output <- NFCP.Parameters(N.factors = 2,
 #'                GBM = TRUE,
 #'                Initial.State = FALSE,
 #'                S.Constant = FALSE,
@@ -747,11 +1089,10 @@ The following outputs have also been renamed: \n
 #'
 #'## ->
 #'
-#'NFCP_parameters(N_factors = 2,
+#'output <- NFCP_parameters(N_factors = 2,
 #'                GBM = TRUE,
 #'                initial_states = FALSE,
-#'                fixed_ME = FALSE,
-#'                N_contracts = 5)
+#'                N_ME = 5)
 #'@keywords internal
 #'@export
 NFCP.Parameters <- function(N.factors, GBM, Initial.State, S.Constant, N.contracts = NULL, verbose = TRUE){
@@ -760,7 +1101,7 @@ NFCP.Parameters <- function(N.factors, GBM, Initial.State, S.Constant, N.contrac
 .Deprecated(msg = "'NFCP.Parameters()' was deprecated in NFCP 0.3.0. \n Please use 'NFCP_parameters()' instead.\n In addition, the following arguments have been renamed: \n
 'N.factors' -> 'N_factors'
 'Initial.State' -> 'initial_states'  \n
-'S.Constant' -> 'fixed_ME'
+'S.Constant' -> 'N_ME'
 'N.contracts' -> 'N_contracts'
 The following outputs have also been renamed: \n
 'sigma.contract' -> 'ME'")
@@ -832,13 +1173,13 @@ The following outputs have also been renamed: \n
 #'
 #'@examples
 #'
-#'Stitch.Contracts(Futures = SS.Oil$Contracts,
+#'output <- Stitch.Contracts(Futures = SS.Oil$Contracts,
 #'TTM = c(1, 5, 9, 13, 17)/12, maturity.matrix = SS.Oil$Contract.Maturities,
 #'rollover.frequency = 1/12, verbose = TRUE)
 #'
 #'## ->
 #'
-#'stitch_contracts(futures = SS_oil$contracts,
+#'output <- stitch_contracts(futures = SS_oil$contracts,
 #'                futures_TTM = c(1, 5, 9, 13, 17)/12,
 #'                maturity_matrix = SS_oil$contract_maturities,
 #'                rollover_frequency = 1/12, verbose = TRUE)
@@ -874,11 +1215,11 @@ stitch_contracts(Futures, TTM, maturity.matrix, rollover.frequency, Contract.Num
 #'
 #'@examples
 #'
-#'NFCP.Domains(names(SS_oil$two_factor))
+#'output <- NFCP.Domains(names(SS_oil$two_factor))
 #'
 #'## ->
 #'
-#'NFCP_domains(names(SS_oil$two_factor))
+#'output <- NFCP_domains(names(SS_oil$two_factor))
 #'
 #'@keywords internal
 #'@export
@@ -999,353 +1340,6 @@ NFCP.Domains <- function(parameters,
 #'
 #'Schwartz, E. S., and J. E. Smith, (2000). Short-Term Variations and Long-Term Dynamics in Commodity Prices. \emph{Manage. Sci.}, 46, 893-911.
 "SS.Oil"
-
-
-
-#'N-Factor Commodity Pricing Kalman Filter
-#'
-#' @description
-#' `r lifecycle::badge("deprecated")`
-#'
-#' This function was deprecated due to a change in the name of the function to adhere to the tidyverse style guide.
-#'
-#'@examples
-#'
-#'NFCP.Kalman.filter(
-#'  parameter.values = SS_oil$two_factor,
-#'  parameters = names(SS_oil$two_factor),
-#'  log.futures = log(SS_oil$stitched_futures),
-#'  TTM = SS_oil$stitched_TTM,
-#'  dt = SS_oil$dt,
-#'  verbose = FALSE)
-#'
-#'## ->
-#'
-#'NFCP_Kalman_filter(
-#'parameter_values = SS_oil$two_factor,
-#'parameter_names = names(SS_oil$two_factor),
-#'log_futures = log(SS_oil$stitched_futures),
-#'futures_TTM = SS_oil$stitched_TTM,
-#'dt = SS_oil$dt,
-#'verbose = FALSE)
-#'
-#'@keywords internal
-#'@export
-NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM, verbose = FALSE, debugging = FALSE){
-
-  #warning deprecation:
-  .Deprecated(msg = "'NFCP.Kalman.filter()' was deprecated in NFCP 0.3.0. \n Please use 'NFCP_Kalman_filter()' instead.\n In addition, the following arguments have been renamed:\n
-'parameter.values' -> 'parameter_values'
-'parameters' -> 'parameter_names'
-'TTM' -> 'futures_TTM'
-'log.futures' -> 'log_futures' \n
-The following outputs have also been renamed: \n
-'X.t' -> 'x_t'
-'Filtered.Error' -> 'filtered_error'
-'TSFit.Error' -> 'TSfit_error'
-'TSFit.Volatility' -> 'TSfit_volatility'
-'d' -> 'd_t'
-'Z' -> 'Z_t'
-'H' -> 'H_t'
-")
-
-  # output <- NFCP_Kalman_filter(parameter.values, parameters, log.futures, dt, TTM, verbose, debugging)
-  #
-  # if(verbose || debugging){
-  #   if(debugging){
-  #     names(output) <- c("LL", "X.t", "X", "Y", "V", "Filtered.Error", "TSFit.Error", "TSFit.Volatility", "LL_t", "P_t", "F_t", "K_t", "d", "Z", "G_t", "c_t", "Q_t", "H")
-  #   } else {
-  #     names(output) <- c("LL", "X.t", "X", "Y", "V", "Filtered.Error", "TSFit.Error", "TSFit.Volatility")
-  #   }
-  #
-  # }
-  #
-  # return(output)
-
-  NFCP.Kalman.filter = function(parameter.values, parameters, log.futures, dt, TTM, verbose = FALSE, debugging = FALSE){
-
-    if(debugging) verbose <- TRUE
-
-    params <- parameter.values
-    names(params) <- parameters
-
-    ##Standardize format:
-    log.futures <- as.matrix(log.futures)
-    TTM <- as.matrix(TTM)
-
-    ## "Contract" data or "Aggregate" Data?
-    Contract.Data <- all(dim(TTM)>1)
-    if(Contract.Data && !all(dim(log.futures) == dim(TTM))) stop("Observations and Maturity matrix have different dimensions")
-    if(!Contract.Data && length(TTM)!=ncol(log.futures)) stop("Number of observations does not equal number of time homogeneous TTM's")
-
-    ##GBM or MR Process?
-    GBM <- "mu" %in% names(params)
-
-    ###First factor GBM or MR?
-    if(GBM){
-      params["kappa_1"] <- 0
-      params["E"] <- 0
-    } else {
-      params["mu"] <- 0
-    }
-    if(!"sigma.contracts" %in% names(params)) if(!paste0("sigma.contract_", ncol(log.futures)) %in% names(params)) stop("Not enough Individual Contract white noises have been specified")
-
-    ###The highest sigma input would be our number of factors
-    N.factors <- max(which(paste0("sigma_", 1:length(params)) %in% names(params) & sapply(params[paste0("sigma_",1:length(params))], FUN = is.numeric) & !sapply(params[paste0("sigma_",1:length(params))], FUN = is.na)))
-
-    ##Dimensions of observations:
-    N.obs <- nrow(log.futures)
-    N.contracts <- ncol(log.futures)
-
-    #X_t is our vector of state variables:
-    X_t <- matrix(rep(0, N.factors))
-    #This is our best estimate if we're not specifying anything:
-    if(GBM) X_t[1] <- log.futures[1,1]
-    #But if we are:
-    if("X.0_1" %in% names(params)) X_t <- matrix(sapply(1:N.factors, FUN = function(x) if(paste0("X.0_",x) %in% names(params)) params[paste0("X.0_",x)]))
-
-
-    #Things to calculate before the iteration:
-    d <- params["E"] + A_T(params, TTM)
-
-    ##If Aggregate (Contract) Data, matrix Z is time (in)homogenous
-    if(Contract.Data){
-      Z <- array(NA, dim = c(N.obs, N.contracts, N.factors))
-      Z[,,1:N.factors] <- sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM))
-    } else {
-      Z <- as.matrix(sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM)))
-
-      if(N.contracts == 1) Z = t(as.matrix(sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * TTM))))
-    }
-
-
-    #G:
-    G_t <- diag(N.factors)
-    diag(G_t) <- sapply(1:N.factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * dt))
-
-    #c:
-    c_t <- matrix(c(params["mu"] * dt, rep(0, N.factors-1)))
-
-    #Variance of omega:
-    # P_t <- Q_t <- cov_func(params, dt)
-    Q_t <- cov_func(params, dt)
-    P_t <- diag(100, N.factors)
-
-    #Measurement Errors matrix:
-    H <- diag(N.contracts)
-    if("sigma.contracts" %in% names(params)){
-      diag(H) <- params["sigma.contracts"]^2
-    } else {
-      if(!paste0("sigma.contract_", ncol(log.futures)) %in% names(params)) stop("Not enough Individual Contract white noises have been specified")
-      diag(H) <- sapply(1:N.contracts, FUN = function(x) params[paste0("sigma.contract_",x)]^2)
-    }
-
-
-    ##If not verbose, run it with the fkf.SP function (faster):
-    if(!verbose){
-
-      ##These are required structures for the fkf.SP inputs:
-      if(Contract.Data){
-        Zt <- array(NA, dim = c(N.contracts, N.factors, N.obs))
-        for(i in 1:N.factors) Zt[,i,] <- t(Z[,,i])
-        d <- t(d)
-      } else {
-        Zt <- Z
-      }
-      log_likelihood <- suppressWarnings(FKF.SP::fkf.SP(a0 = c(X_t),
-                                                        P0 = P_t,
-                                                        dt = c_t,
-                                                        ct = d,
-                                                        Tt = G_t,
-                                                        Zt = Zt,
-                                                        HHt = Q_t,
-                                                        GGt = as.matrix(diag(H)),
-                                                        yt = t(log.futures)))
-
-      ## If The model was poorly specified, the log-likelihood returns NA. We need to return a heavily penalised score for the gradient function.
-      return(ifelse(is.na(log_likelihood),stats::runif(1, -1.5e6, -1e6), log_likelihood))
-    } else {
-      ##Kalman filter in R
-
-      #Variables to save:
-      save_X <- matrix(0, nrow = N.obs, ncol = N.factors)
-      save_X_SD <- matrix(0, nrow = N.obs, ncol = N.factors)
-      save_V <- matrix(NA, nrow = N.obs, ncol = ncol(log.futures))
-      save_Y <- matrix(NA, nrow = N.obs, ncol = ncol(log.futures))
-      rownames(save_X) <- rownames(save_X_SD) <- rownames(save_V) <- rownames(save_Y) <- rownames(log.futures)
-
-      if(debugging){
-        max.obs <- max(rowSums(!is.na(log.futures)))
-
-        save_P <- array(NA, dim = c(N.factors, N.factors, N.obs))
-        save_F <- array(NA, dim = c(max.obs, max.obs, N.obs))
-        save_K <- array(NA, dim = c(N.factors, max.obs, N.obs))
-        LL_t <- rep(0, N.obs)
-      }
-
-      #Initialize
-      log_likelihood <- 0
-      I <- diag(N.factors)
-      converged <- FALSE
-
-      if(!Contract.Data){
-        d_t <- d
-        Z_t <- Z
-      }
-
-      #####BEGIN Kalman filter:
-      for(t in 1:N.obs){
-
-        ##Transition Equation:
-        X_tp1 <- c_t + G_t %*% X_t
-
-        ##Covariance Transition Equation:
-        P_tp1 <- G_t %*% P_t %*% t(G_t) + Q_t
-
-        ##How many contracts are we observing this iteration?
-        Observed.Contracts <- which(!is.na(log.futures[t,]))
-        if(length(Observed.Contracts)>0){
-          N.Observed.contracts <- length(Observed.Contracts)
-
-          ##Time Inhomogeneous - Update:
-          if(Contract.Data){
-            #Measurement Errors matrix:
-            #Expectation of epsilon_t is 0
-            #Variance    of epsilon_t is H
-            H <- diag(N.Observed.contracts)
-            if("sigma.contracts" %in% names(params)){
-              diag(H) <- params["sigma.contracts"]^2
-            } else {
-              diag(H) <- sapply(Observed.Contracts, FUN = function(x) params[paste0("sigma.contract_",x)]^2)
-              ##If the model's estimated something to push it to zero, set it to zero:
-              diag(H)[which(diag(H)<1.01e-10)] <- 0
-            }
-
-            #Step 1 - Calculate Required Values:
-
-            #d
-            d_t <- matrix(d[t,Observed.Contracts])
-
-            #Z:
-            Z_t <- as.matrix(Z[t,Observed.Contracts,])
-            if(length(Observed.Contracts)==1) Z_t <- t(Z[t,Observed.Contracts,])
-          }
-
-          if(Contract.Data || !converged){
-
-            #Function of covariance matrix:
-            F_t  <- Z_t %*% P_tp1 %*% t(Z_t) + H
-
-            det_F_t <- suppressWarnings(log(det(F_t)))
-
-            ##Numeric Stability - Poorly Conditioned params:
-            inverse_F_t <- try(solve(F_t))
-            if(is.na(det_F_t))                         stop("Negative determinant in Kalman filter Covariance matrix. Theta may be poorly specified.")
-            if(any(class(inverse_F_t) == "try-error")) stop("Singular Kalman filter Covariance Matrix. Theta may be poorly specified.")
-
-            #Kalman Gain:
-            K_t <- P_tp1 %*% t(Z_t) %*% inverse_F_t
-            P_tp1 <- (I - K_t %*% Z_t) %*% P_tp1
-
-            ###Check if the values have converged, if so, we can increase the efficiency of the algorithm:
-            if(!converged && t > 3) converged <- abs(sum(P_tp1 - P_t)) < 1e-07
-
-            P_t <- P_tp1
-            convergance_time <- t
-
-          }
-
-          ##Measurement Equation:
-          y_bar_t <- d_t + Z_t %*% X_tp1
-          #Actual Futures Prices:
-          y_t <- as.matrix(log.futures[t,Observed.Contracts])
-          #Prediction Error:
-          v_t <- y_t - y_bar_t
-          #Correction based upon prediction error:
-          X_tp1 <- X_tp1 + K_t %*% v_t
-          ###Update, iteration begins anew:
-          X_t <- X_tp1
-          P_t <- P_tp1
-
-          #Update Concurrent Log Likelihood of Observations:
-          log_likelihood <- sum(log_likelihood, - (1/2) * sum(N.Observed.contracts * log(2*pi), det_F_t, t(v_t) %*% inverse_F_t %*% v_t))
-          #-----------------------
-
-          ##Verbose Saving:
-
-          #Record our estimated variables
-          #Updated Error terms:
-          y_tt <- d_t + Z_t %*% X_t
-          v_tt <- y_tt - y_t
-
-          save_X[t,] <- X_t
-          save_X_SD[t,] <- diag(P_t)
-          save_Y[t,Observed.Contracts] <- y_tt
-          save_V[t,Observed.Contracts] <- v_tt
-          log_likelihood_result <- log_likelihood
-          if(debugging){
-
-            save_P[,,t] <- P_t
-            save_F[1:N.Observed.contracts,1:N.Observed.contracts,t] <- F_t
-            save_K[,1:N.Observed.contracts,t] <- K_t
-
-            LL_t[t] <- log_likelihood
-          }
-        }
-      }
-
-      #Final observations, for forecasting purposes:
-      X.t <- c(X_t)
-      names(X.t) <- paste0("X.", 1:N.factors, "_t")
-
-      ####Term Structure Analysis:
-      #Save the filtered Observations:
-      Y_output <- exp(cbind(params["E"] + rowSums(save_X),save_Y))
-      if(!is.null(colnames(log.futures))) colnames(Y_output) <- c("filtered Spot", colnames(log.futures))
-      colnames(save_X) <- colnames(save_X_SD) <- paste("Factor", 1:N.factors)
-      rownames(Y_output) <- rownames(save_X)
-
-      ###Term Structure Fit:
-      Term_Structure_Fit <- matrix(0, nrow = 4, ncol = ncol(log.futures))
-
-      ##Mean Error:
-      Term_Structure_Fit[1,] <- colMeans(save_V, na.rm = TRUE)
-      ##Mean Absolute Error
-      Term_Structure_Fit[2,] <- colMeans(abs(save_V), na.rm = TRUE)
-      ##SD of Error:
-      Term_Structure_Fit[3,] <- apply(save_V, MARGIN = 2, FUN = function(x) stats::sd(x, na.rm = TRUE))
-      ##RMSE of each contract:
-      Term_Structure_Fit[4,] <- sqrt(colMeans(save_V^2, na.rm = TRUE))
-
-      rownames(Term_Structure_Fit) <- c("Mean Error", "Mean Absolute Error", "SD Error", "RMSE")
-      colnames(Term_Structure_Fit) <- colnames(save_V) <- colnames(log.futures)
-
-      ### Term structure fit to all observations:
-      Filtered_Error <- c(`High Bias` = mean(save_V[save_V > 0], na.rm = TRUE), `Low Bias` =  mean(save_V[save_V < 0], na.rm = TRUE), `Bias` = mean(save_V, na.rm = TRUE),
-                          `RMSE` = sqrt(mean(save_V^2, na.rm = TRUE)))
-
-
-      ###Volatility TSFit:
-      if(Contract.Data) {
-        Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM[nrow(TTM),], dt)
-      } else {
-        Volatility_TSFit <- TSFit.Volatility(params, exp(log.futures), TTM, dt) }
-
-
-      ##Verbose List
-      output = list(LL = log_likelihood, X.t = X.t, X = save_X, Y = Y_output,
-                    V = save_V, Filtered.Error = Filtered_Error, TSFit.Error = Term_Structure_Fit, TSFit.Volatility = Volatility_TSFit)
-
-      ##Debugging List:
-      if(debugging) output <- c(output, list(LL_t = LL_t, P_t = save_P, F_t = save_F, K_t = save_K, d = d, Z = Z, G_t = G_t, c_t = c_t, Q_t = Q_t, H = H))
-
-      #Return Output value:
-      return(output)
-    }
-  }
-
-}
-
 
 
 

@@ -70,7 +70,7 @@ simulated_futures <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
 ##using a rolling-window of measurement errors:
 
 simulated_futures_prices <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
-                                                  parameters = SS_2F,
+                                                  parameters = SS_oil$two_factor,
                                                   dt = SS_oil$dt,
                                                   N_obs = nrow(SS_oil$contracts),
                                                   futures_TTM = SS_oil$contract_maturities,

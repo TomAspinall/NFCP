@@ -194,7 +194,7 @@ The measurement error of a commodity pricing model is a highly important charact
 print(SS_oil$two_factor[8:12])
 ```
 
-This provided insights into the model, such as it has the highest fit to medium-term futures contracts, and that there is a large differnce in the ability for the model to explain different sections of the term structure of oil. This assumption is no longer possible when considering the incomplete contract data, as the number of observed futures contracts in the incomplete dataset is 82, which would require 82 separate unknown parameters. Traditionally the assumption for incomplete contract data is that the measurement error of futures contracts are independent and identical (i.e., there is only one measurement error).
+This provided insights into the model, such as it has the highest fit to medium-term futures contracts, and that there is a large difference in the ability for the model to explain different sections of the term structure of oil. This assumption is no longer possible when considering the incomplete contract data, as the number of observed futures contracts in the incomplete dataset is 82, which would require 82 separate unknown parameters. Traditionally the assumption for incomplete contract data is that the measurement error of futures contracts are independent and identical (i.e., there is only one measurement error).
 
 The 'NFCP' package allows for multiple measurement errors to be considered in the Kalman filter by grouping observations by their respective time-to-maturity at a given observation. This can improve the fit of commodity pricing models, as measurement errors can clearly differ by a wide margin. Maturity grouping is considered in the 'ME_TTM' argument, which refers to the maximum maturity to consider for a given number of measurement errors. The 'ME_TTM' is only specified when the number of ME parameters is greater than one, and less than the total number of observed futures contracts.
 
@@ -208,7 +208,7 @@ The assumption that measurement errors are independent and identical is clearly 
 
 Parameter estimation of commodity pricing models is performed through the 'NFCP_MLE' function. The 'NFCP_MLE' function is a wrapper of the 'NFCP_Kalman_filter' function to the 'genoud' function of the 'rgenoud' package. The 'genoud' function uses genetic algorithms to solve optimization problems such as MLE (Mebane and Sekhon, 2011). All arguments of the 'genoud' function can be passed through the 'NFCP_MLE' function and can have a large impact on the estimated parameters of a commodity pricing model. Increasing the population size in particular can have a large impact on maximum likelihood estimates at the cost of increasing the computation time of the estimation process, with population sizes of up to 5-10,000 potentially increasing the performance of MLE for estimating complex commodity pricing models.
 
-The following example presents an estimation of a one-factor Geometric Brownian Motion model to the Schwartz and Smith (2000) crude oil dataset. This function call can take up to one-minute to execute:
+The following example presents an estimation of a one-factor geometric Brownian motion model to the Schwartz and Smith (2000) crude oil dataset. There are five futures prices observed at each discrete time point, allowing us to consider a model with between 1-5 measurement errors. When only one measurement error (i.e., 'N_ME' = 1) is considered, the measurement error is assumed independent and identical. When five measurement errors are considered (i.e., 'N_ME' = 5), the measurement error is assumed independent and unique. In this example, three measurement errors are considered. The first measurement error considers contracts with maturities of less than six months (i.e., ME_TTM[1] = 0.5). This corresponds to the first two observations. The second measurement error considers observations with maturities between 6-12 months (the third observation), and the final measurement error considers observations with maturities between 12-18 months (observations four and five). This function call can take up to one-minute to execute:
 
 ```{r}
 # Estimate a GBM model:
@@ -217,7 +217,8 @@ SS_oil_1F <- NFCP_MLE(
       log_futures = log(SS_oil$stitched_futures),
       dt = SS_oil$dt,
       futures_TTM= SS_oil$stitched_TTM,
-      N_ME = 5, 
+      N_ME = 3,
+      ME_TTM = c(0.5, 1, 1.5),
       N_factors = 1,
       GBM = TRUE,
       cluster = NULL,
@@ -227,7 +228,7 @@ SS_oil_1F <- NFCP_MLE(
       max.generations = 100, solution.tolerance = 0.1)
 
 ##Print results:
-print(round(cbind(`Estimated Parameters` = SS_oil_1F$estimated_parameters, 
+print(round(cbind(`Estimated Parameter` = SS_oil_1F$estimated_parameters, 
                   `Standard Error` = SS_oil_1F$standard_errors),4))
 ```
 
@@ -240,13 +241,13 @@ The log-likelihood score of a GBM model estimated on this term structure data is
 print(c(`Log-Likelihood: One-Factor` = SS_oil_1F$MLE))
 ```
 
-The log-likelihood score of the two-factor model presented by Schwartz and Smith (2000) is:
+The log-likelihood score of a two-factor model on this term structure data is:
 
 ```{r}
 print(c(`Log-Likelihood: Two-Factor` = SS_oil_2F$`Log-Likelihood`))
 ```
 
-The GBM model can be obtained from the two-factor model by considering uncertainty in factor 1 only (i.e. $x_{(2,0)} ,\lambda_2, \sigma_2$ are zero). The relevant test statistic for this comparison is a chi-squared test with 3 degrees of freedom with a 99th percentile of this distribution being 11.31 (Schwartz and Smith, 2000). In this particular case, the log-likelihood score of the two-factor model is much greater than that of the one-factor GBM, indicating that an additional factor has greatly improved the fit of the commodity pricing model. Similar statistical testing can be done for different N-factor models.
+The GBM model can be obtained from the two-factor model by considering uncertainty in factor 1 only (i.e. $x_{(2,0)} ,\lambda_2, \sigma_2$ are zero). Futhermore, the one-factor model considered only three measurement errors, whilst the two-factor model utilized five measurement errors. The relevant test statistic for this comparison is a chi-squared test with 5 degrees of freedom (3 factor 2 parameters and 2 ME parameters) with a 99th percentile of this distribution being 15.086. If the two models had been estimated using the same number of ME parameters (i.e., 'N_ME' = 5), the test statistic would instead be a chi-squared test with 3 degrees of freedom with a 99th percentile of 11.345 (Schwartz and Smith, 2000). In this particular case, the log-likelihood score of the two-factor model is much greater than that of the one-factor GBM, indicating that an additional factor has greatly improved the fit of the commodity pricing model. Similar statistical testing can be done for different N-factor models.
 
 ## 4.6 N-Factor Model Term Structure Fit:
 
@@ -325,25 +326,9 @@ xlab = "", ylab = "Oil Price ($/bbl, WTI)", col = 1,
 
 ## 4.9 Plot Standard Deviation of State Variables:
 
-Cortazar and Naranjo (2006) plot the time series of the standard deviation for state variables (Figures 2 & 3) for analysis of the behaviour of the state variables over the observation period. This can provide insights and complement analysis into exogenous shocks, structural breaks and the volatility of the factors that influence a commodity over time.
+Cortazar and Naranjo (2006) plot the time series of the standard deviation for state variables (Figures 2 & 3) for analysis of the behaviour of the state variables over the observation period. When using stitched, aggregate data (i.e., the time-to-maturity of observations are time-homogeneous) the Kalman filter and covariance of state variables quickly approaches a steady state distribution. Plotting the covariance of state variables of contract data, however, can provide insights and complement analysis into exogenous shocks, structural breaks and the volatility of the factors that influence a commodity over time.
 
-```{r}
-observation_dates <- as.Date(rownames(SS_oil$contracts))
-
-plot(observation_dates, sqrt(SS_oil_2F$P_t[1,1,]), type = 'l', 
-     xlab = "Date", ylab = "Std. Dev.")
-
-```
-
-Due to the time homogeneous time to maturity of the stitched contract data, the variance of the first state variable is linear through time, with the standard deviation having a square-root relationship through time.
-
-```{r}
-plot(observation_dates, sqrt(SS_oil_2F$P_t[2,2,]), type = 'l', 
-     xlab = "Date", ylab = "Std. Dev.")
-```
-
-Due to the time homogeneous time to maturity of the stitched contract data, the standard deviation of the second state variable approaches a steady state distribution.
-
+When 
 ```{r}
 plot(as.Date(rownames(SS_oil$contracts)), sqrt(SS_oil_2F_contracts$P_t[1,1,]), 
      type = 'l', xlab = "Date", ylab = "Std. Dev.", 
@@ -351,15 +336,6 @@ plot(as.Date(rownames(SS_oil$contracts)), sqrt(SS_oil_2F_contracts$P_t[1,1,]),
 ```
 
 A possible structural break at approximately the beginning of 1991 can be observed within the plot above. In the work of Cortazar and Naranjo (2006), structural breaks in time series data were tested by comparing the time-series covariance matrix of state variables for difference samples, and then computing a Wald test statistic.
-
-```{r}
-plot(x = observation_dates, sqrt(SS_oil_2F_contracts$P_t[2,2,]), 
-     type = 'l', xlab = "Date", ylab = "Std. Dev.", 
-     main = "Time Series of the Std. Dev for State Variable 2")
-```
-
-Factor two follows an Ornstein-Uhlenbeck process and the mean-reverting behavior of this state variable is clearly shown in the plot above
-
 
 ## 4.10 Forecast Spot and Futures Prices:
 
@@ -567,7 +543,6 @@ Consider a European put option on the spot price of crude oil, with option expir
 ## One-Factor European put option value: 
 European_oil_1F <- European_option_value(x_0 = SS_oil_1F$x_t,
                                          parameters = SS_oil_1F$estimated_parameters,
-                                         t = 0,
                                          futures_maturity = 1,
                                          option_maturity  = 1,
                                          K = 20,
@@ -577,7 +552,6 @@ European_oil_1F <- European_option_value(x_0 = SS_oil_1F$x_t,
 ## Two-Factor European put option value: 
 European_oil_2F <- European_option_value(x_0 = SS_oil_2F$x_t,
                                          parameters = SS_oil$two_factor,
-                                         t = 1,
                                          futures_maturity = 1,
                                          option_maturity = 1,
                                          K = 20,
@@ -603,7 +577,7 @@ Similarly to the European option valuation presented in 4.13.1, Consider an Amer
 American_oil_1F <- American_option_value(x_0 = SS_oil_1F$x_t,
                       parameters = SS_oil_1F$estimated_parameters,
                       N_simulations = 1e5,
-                      t = 1,
+                      option_maturity = 1,
                       dt = 1/50,
                       K = 20,
                       r = 0.05)
@@ -612,7 +586,7 @@ American_oil_1F <- American_option_value(x_0 = SS_oil_1F$x_t,
 American_oil_2F <- American_option_value(x_0 = SS_oil_2F$x_t,
                       parameters = SS_oil$two_factor,
                       N_simulations = 1e5,
-                      t = 1,
+                      option_maturity = 1,
                       dt = 1/50,
                       K = 20,
                       r = 0.05,
@@ -663,7 +637,7 @@ stock_parameters <- c(mu_rn = (rf - 0.5 * sigma[i]^2), sigma_1 = sigma[i])
 output <- American_option_value(x_0 = log(S0[i]),
                       parameters = stock_parameters,
                       N_simulations = N_simulations,
-                      t = TTM[i],
+                      option_maturity = TTM[i],
                       dt = dt,
                       K = K,
                       r = rf,
@@ -677,7 +651,6 @@ LSM_output[i,2]  <- output$`Standard Error`
 ## European option pricing through the BSM PDE
 LSM_output[i,3] <- European_option_value(x_0 = log(S0[i]),
                                          parameters = stock_parameters,
-                                         t = TTM[i],
                                          futures_maturity = TTM[i],
                                          option_maturity = TTM[i],
                                          K = K,

@@ -13,14 +13,14 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-Spot.Price.Forecast(X.0 = c(3,0),
+output <- Spot.Price.Forecast(X.0 = c(3,0),
                   parameters = SS_oil$two_factor,
                   t = seq(0,9,1/12),
                   Percentiles = c(0.1, 0.9))
 
 ## ->
 
-spot_price_forecast(x_0 = c(3,0),
+output <- spot_price_forecast(x_0 = c(3,0),
                    parameters = SS_oil$two_factor,
                    t = seq(0,9,1/12),
                    percentiles = c(0.1, 0.9))

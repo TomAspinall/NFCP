@@ -14,7 +14,7 @@ This function was deprecated due to a change in the name of the function to adhe
 \examples{
 
 ##Step 2 - Calculate 'call' option price:
-European.Option.Value(X.0 = c(3,0),
+output <-  European.Option.Value(X.0 = c(3,0),
                       parameters = SS.Oil$Two.Factor,
                       t = 1,
                       TTM = 1,
@@ -25,9 +25,8 @@ European.Option.Value(X.0 = c(3,0),
 
 ## ->
 
-European_option_value(x_0 = c(3,0),
+output <- European_option_value(x_0 = c(3,0),
                      parameters = SS_oil$two_factor,
-                     t = 1,
                      futures_maturity = 1,
                      option_maturity = 1,
                      K = 20,

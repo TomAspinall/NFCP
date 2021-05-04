@@ -1,12 +1,12 @@
 #'N-factor model American put option pricing
 #'
 #' @description Value American put options under the parameters of an N-factor model through the Least-Squares Monte Carlo (LSM) Simulation Method.
-#' This function is a wrapper to the 'LSM.AmericanOption' function of the 'LSMRealOptions' package.
+#' This function is a wrapper to the 'LSM_American_option' function of the 'LSMRealOptions' package.
 #'
 #' @param x_0 Initial values of the state vector.
-#' @param parameters Named vector of parameter values of a specified N-factor model. Function \code{NFCP.Parameters} is recommended.
+#' @param parameters Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
 #' @param N_simulations total number of simulated price paths
-#' @param t Time to expiration of the option (in years)
+#' @param option_maturity Time to expiration of the option (in years)
 #' @param dt discrete time step of simulation
 #' @param K Strike price of the American put option
 #' @param r Risk-free interest rate.
@@ -18,7 +18,7 @@
 #'
 #'@details
 #'
-#'The 'American_option_value' function is a wrapper to the 'Spot.Price.Simulate' and 'LSM.AmericanOption' of the 'LSMRealOptions' package that
+#'The 'American_option_value' function is a wrapper to the 'spot_price_simulate' and 'LSM_American_option' of the 'LSMRealOptions' package that
 #'returns the value of American put options under a given N-factor model.
 #'
 #'The least-squares Monte Carlo (LSM) simulation method is an option valuation method first presented by Longstaff and Schwartz (2001) that
@@ -75,7 +75,7 @@
 #'American_option_value(x_0 = log(36),
 #'                      parameters = c(mu_rn = (0.06 - (1/2) * 0.2^2), sigma_1 = 0.2),
 #'                      N_simulations = 1e2,
-#'                      t = 1,
+#'                      option_maturity = 1,
 #'                      dt = 1/50,
 #'                      K = 40,
 #'                      r = 0.05,
@@ -98,7 +98,7 @@
 #'American_option_value(x_0 = Schwartz_Smith_oil$x_t,
 #'                      parameters = SS_oil$two_factor,
 #'                      N_simulations = 1e2,
-#'                      t = 1,
+#'                      option_maturity = 1,
 #'                      dt = 1/12,
 #'                      K = 20,
 #'                      r = 0.05,
@@ -106,7 +106,7 @@
 #'                      orthogonal = "Power",
 #'                      degree = 2)
 #'@export
-American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, orthogonal = "Power", degree = 2, verbose = FALSE, debugging = FALSE){
+American_option_value <- function(x_0, parameters, N_simulations, option_maturity, dt, K, r, orthogonal = "Power", degree = 2, verbose = FALSE, debugging = FALSE){
 
   if("mu_star" %in% names(parameters)){
     warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
@@ -115,7 +115,7 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
   }
 
   ## Step 1 - Simulate the N-factor model:
-  simulated_states <- spot_price_simulate(x_0 = x_0, parameters = parameters, t = t, dt = dt, N_simulations = N_simulations, verbose = TRUE)
+  simulated_states <- spot_price_simulate(x_0 = x_0, parameters = parameters, t = option_maturity, dt = dt, N_simulations = N_simulations, verbose = TRUE)
 
   ## Step 2 - Apply the 'LSM.AmericanOption' function from the 'LSMRealOptions' to value the American put option:
   output <- suppressWarnings( LSMRealOptions::LSM.AmericanOption(state.variables = simulated_states$state_variables,
@@ -137,12 +137,11 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
 
 
 
-#'N-factor ,odel European option pricing
+#'N-factor model European option pricing
 #'@description Value European Option Put and Calls under the parameters of an N-factor model.
 #'
 #'@param x_0 Initial values of the state vector.
-#'@param parameters Named vector of parameter values of a specified N-factor model. Function \code{NFCP.Parameters} is recommended.
-#'@param t Time, in years, when the European option is valued.
+#'@param parameters Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
 #'@param futures_maturity Time, in years, when the underlying futures contract matures.
 #'@param option_maturity Time, in years,  when the European option expires.
 #'@param K Strike price of the European Option
@@ -240,7 +239,7 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
 #'K <- 20
 #'### Calculate 'put' option price:
 #'European_option_value(x_0 = log(S_0), parameters = c(mu_rn = rf, sigma_1 = S_sigma),
-#'                      t = Tt, futures_maturity = Tt, option_maturity = 1,
+#'                      futures_maturity = Tt, option_maturity = 1,
 #'                      K = K, r = rf, call = FALSE, verbose = TRUE)
 #'
 #'##Example 2 - A European call option under a two-factor crude oil model:
@@ -250,14 +249,13 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
 #'Schwartz_Smith_oil <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
 #'                                         parameter_names = names(SS_oil$two_factor),
 #'                                         log_futures = log(SS_oil$stitched_futures),
-#'                                         dt = SS.Oil$dt,
+#'                                         dt = SS_oil$dt,
 #'                                         futures_TTM = SS_oil$stitched_TTM,
 #'                                         verbose = TRUE)
 #'
 #'##Step 2 - Calculate 'call' option price:
 #'European_option_value(x_0 = Schwartz_Smith_oil$x_t,
 #'                      parameters = SS_oil$two_factor,
-#'                      t = 1,
 #'                      futures_maturity = 1,
 #'                      option_maturity = 1,
 #'                      K = 20,
@@ -265,7 +263,7 @@ American_option_value <- function(x_0, parameters, N_simulations, t, dt, K, r, o
 #'                      call = TRUE,
 #'                      verbose = FALSE)
 #'@export
-European_option_value <- function(x_0, parameters, t, futures_maturity, option_maturity, K, r, call, verbose = FALSE){
+European_option_value <- function(x_0, parameters, futures_maturity, option_maturity, K, r, call, verbose = FALSE){
 
   if("mu_star" %in% names(parameters)){
     warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
@@ -273,82 +271,76 @@ European_option_value <- function(x_0, parameters, t, futures_maturity, option_m
     parameters <- parameters[!names(parameters) %in% "mu_star"]
   }
 
-  x_0 <- c(x_0, use.names = F)
-  names(x_0) <- paste0("X.", 1:length(x_0))
-
-  ###Inputs:
-  parameters <- c(t = t, futures_maturity = futures_maturity, option_maturity = option_maturity, K = K, r = r, x_0, parameters)
 
   ##Remove unnecessary parameters:
   parameters <- parameters[!names(parameters) %in% c("mu")]
   parameters <- parameters[!grepl("ME", names(parameters))]
 
-  ###Instantiate the actual function:
+  x_0 <- c(x_0, use.names = F)
+  names(x_0) <- paste0("x_", 1:length(x_0), "_0")
+
+  ###Inputs:
+  parameters <- c(futures_maturity = futures_maturity, option_maturity = option_maturity, K = K, r = r, x_0, parameters)
+
+  if(futures_maturity < option_maturity) stop("futures_maturity must be greater than option_maturity!")
+
+  N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
+  GBM <- !("kappa_1" %in% names(parameters))
+  if(GBM) parameters["kappa_1"] <- 0
+
+  ##Calculate Initial Values:
+  ###Calculate expected Futures price:
+  F_Tt <- NFCP::futures_price_forecast(x_0 = x_0, parameters = parameters, t = 0, futures_TTM = futures_maturity)
+
+  ### Variance Calculation:
+  covariance <- NFCP::cov_func(parameters, option_maturity)
+  sigma_Tt <- 0
+  for(i in 1:N_factors){
+    for(j in 1:N_factors){
+      sigma_Tt <- sigma_Tt + covariance[i,j] * exp(- (parameters[paste0("kappa_", i)] + parameters[paste0("kappa_", j)]) * (futures_maturity - option_maturity))
+    }
+  }
+  sd <- c(sqrt(sigma_Tt), use.names = FALSE)
+  if(GBM) parameters <- parameters[!names(parameters) %in% "kappa_1"]
+
+  parameters <- c(parameters, F_Tt = F_Tt, sd = sd)
+
+  ###Define the European option value function:
   European_option_calc <- function(X = 0, parameters, gradit = 0, call){
 
     if(gradit>0 && gradit<=length(parameters)) parameters[gradit] <- X
-
-    Boolean <- c(futures_maturity < option_maturity, option_maturity < t)
-    if(Boolean[1]) stop("futures_maturity must be less than option_maturity!")
-    if(Boolean[2]) stop("option_maturity must be less than t!")
-
-    ###Calculate the Variance:
     N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
     GBM <- !("kappa_1" %in% names(parameters))
     if(GBM) parameters["kappa_1"] <- 0
 
-    ###Drift term:
-    drift <- parameters["mu_rn"] * parameters["t"] + NFCP::A_T(parameters, parameters["futures_maturity"] - parameters["t"])
-    for(i in 1:N_factors) drift <- drift + exp(-parameters[paste0("kappa_", i)] * parameters["futures_maturity"]) * parameters[paste0("X.",i)]
 
-    # ###Volatility term:
+    x_0 <- parameters[grepl("x_", names(parameters))]
+    ## Current expected futures price:
+    F_Tt <- NFCP::futures_price_forecast(x_0 = x_0, parameters = parameters, t = 0, futures_TTM = parameters["futures_maturity"])
 
-    # sigma_tT <- ifelse(GBM, parameters["sigma_1"]^2 * (parameters["option_maturity"] - parameters["t"]), 0)
-    # for(i in 1:N_factors){
-    #   for(j in 1:N_factors){
-    #     if(!(GBM && i == 1 && j == 1)){
-    #       kappa_sums <- sum(parameters[paste0("kappa_", i)], parameters[paste0("kappa_", j)])
-    #
-    #       sigma_tT <- sigma_tT + parameters[paste0("sigma_", i)] * parameters[paste0("sigma_", j)] *
-    #         ifelse(i==j, 1,
-    #               parameters[paste("rho",min(i,j), max(i,j), sep = "_")]) *
-    #         exp(-parameters["futures_maturity"] * kappa_sums) *
-    #         exp(- (parameters["option_maturity"] - parameters["t"]) * kappa_sums) / kappa_sums
-    #     }
-    #   }
-    # }
-
-    sigma_tT <- 0
+    ### Underlying Volatility:
+    covariance <- NFCP::cov_func(parameters, parameters["option_maturity"])
+    sigma_Tt <- 0
     for(i in 1:N_factors){
       for(j in 1:N_factors){
-        sigma_tT  <- sigma_tT +
-          parameters[paste0("sigma_", i)] * parameters[paste0("sigma_", j)] * ifelse(i == j, 1, parameters[paste("rho", min(i,j), max(i,j), sep = "_")]) * exp(- (parameters[paste0("kappa_", i)] + parameters[paste0("kappa_", j)]) * (futures_maturity - option_maturity))
-      }}
+        sigma_Tt <- sigma_Tt + covariance[i,j] * exp(- (parameters[paste0("kappa_", i)] + parameters[paste0("kappa_", j)]) * (parameters["futures_maturity"] - parameters["option_maturity"]))
+      }
+    }
 
-    ###SD:
-    sigma_tT <- c(sqrt(sigma_tT), use.names = FALSE)
+    parameters["F_Tt"] <- F_Tt
+    parameters["sd"] <- c(sqrt(sigma_Tt), use.names = FALSE)
 
-    ## Expected futures price:
-    F_tT <- NFCP::futures_price_forecast(x_0 = x_0, parameters = parameters, t = t, futures_TTM = futures_maturity)
-
-    parameters["F_tT"] <- F_tT
-    parameters["sigma_tT"] <- sigma_tT
-
+    # Are we evaluating the sensitivity to the futures / underlying volatility?
     if(length(parameters) - gradit < 3) parameters[gradit] <- X
 
-    d1 <-  (log(parameters["F_tT"] / parameters["K"]) + (0.5 * parameters["sigma_tT"]^2)) / parameters["sigma_tT"]
-    d2 <- d1 - parameters["sigma_tT"]
+    d1 <-  (log(parameters["F_Tt"] / parameters["K"]) + (0.5 * parameters["sd"]^2)) / parameters["sd"]
+    d2 <- d1 - parameters["sd"]
 
-    # d.second <- 0.5 * parameters["sigma_tT"]
-    # d.second <- d.first - parameters["sigma_tT"]
-
-    # d1 <-   d.first + d.second
-    # d2 <-   d.first - d.second
 
     if(call){
-      value <- as.numeric(exp(-parameters["r"]*(parameters["option_maturity"] - parameters["t"])) * (parameters["F_tT"] * stats::pnorm(d1) - parameters["K"] * stats::pnorm(d2)))
+      value <- as.numeric(exp(-parameters["r"]*(parameters["option_maturity"])) * (parameters["F_Tt"] * stats::pnorm(d1) - parameters["K"] * stats::pnorm(d2)))
     } else {
-      value <- as.numeric(exp(-parameters["r"]*(parameters["option_maturity"] - parameters["t"])) * (parameters["K"] * stats::pnorm(-d2) - parameters["F_tT"] * stats::pnorm(-d1)))
+      value <- as.numeric(exp(-parameters["r"]*(parameters["option_maturity"])) * (parameters["K"] * stats::pnorm(-d2) - parameters["F_Tt"] * stats::pnorm(-d1)))
     }
 
     return(value)
@@ -358,36 +350,14 @@ European_option_value <- function(x_0, parameters, t, futures_maturity, option_m
     return(Value)
   } else {
 
-    ##Calculate Initial Values:
-    ###Calculate expected Futures price:
-    F_tT <- NFCP::futures_price_forecast(x_0, parameters, t, futures_maturity)
-
-    ###Calculate the Variance:
-    N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
-    if(!"kappa_1" %in% names(parameters)) parameters["kappa_1"] <- 0
-    GBM <- parameters["kappa_1"] == 0
-    sigma_tT <- ifelse(GBM, parameters["sigma_1"]^2 * t, 0)
-    for(i in 1:N_factors){
-      for(j in 1:N_factors){
-        if(!(GBM && i == 1 && j ==1)){
-          kappa_sums <- sum(parameters[paste0("kappa_", i)], parameters[paste0("kappa_", j)])
-
-          sigma_tT <- sigma_tT + exp(-kappa_sums * (futures_maturity - t)) * parameters[paste0("sigma_",i)] * parameters[paste0("sigma_",j)] * ifelse(i==j, 1, parameters[paste("rho",min(i,j), max(i,j), sep = "_")]) * ((1 - exp(-(kappa_sums * t)))/kappa_sums)
-        }}}
-    ###SD:
-    sigma_tT <- c(sqrt(sigma_tT), use.names = FALSE)
-    if(GBM) parameters <- parameters[!names(parameters) %in% "kappa_1"]
-
-    parameters <- c(parameters, F_tT = F_tT, sigma_tT = sigma_tT)
-
     ###Calculate Gradients:
     TheGreeks <- rep(0, length(parameters))
     names(TheGreeks) <- names(parameters)
 
     for(gradit in 1:length(parameters)){
-      if(futures_maturity - t < 0.02){
-        if(names(parameters)[gradit] %in% c("t", "futures_maturity")){
-          if(names(parameters)[gradit] %in% "t")   TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call, side = -1)
+      if(futures_maturity - option_maturity < 0.02){
+        if(names(parameters)[gradit] %in% c("option_maturity", "futures_maturity")){
+          if(names(parameters)[gradit] %in% "option_maturity")   TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call, side = -1)
           if(names(parameters)[gradit] %in% "futures_maturity") TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call, side = 1)
         }
         else {
@@ -398,14 +368,14 @@ European_option_value <- function(x_0, parameters, t, futures_maturity, option_m
         TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call)
       }
     }
-    names(TheGreeks)[(length(TheGreeks)-1):length(TheGreeks)] <- c("Underlying Volatility", "Underlying Futures Price")
+    names(TheGreeks)[(length(TheGreeks)-1):length(TheGreeks)] <- c("underlying futures price", "underlying volatility")
 
 
     final_output <- list(
       "option value" = Value,
-      "annualized volatility" = sigma_tT/sqrt(t),
-      "parameter sensitivity" = TheGreeks[!names(TheGreeks) %in% c("underlying volatility", "underlying futures price", "t", "futures maturity", "K", "r")],
-      "greeks" = TheGreeks[c("underlying volatility", "underlying futures price", "t", "futures maturity", "K", "r")]
+      "annualized volatility" = sd/sqrt(option_maturity),
+      "parameter sensitivity" = TheGreeks[!names(TheGreeks) %in% c("underlying volatility", "underlying futures price", "option_maturity", "futures_maturity", "K", "r")],
+      "greeks" = TheGreeks[c("underlying volatility", "underlying futures price", "option_maturity", "futures_maturity", "K", "r")]
     )
     return(final_output)
   }

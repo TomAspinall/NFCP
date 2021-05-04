@@ -25,7 +25,7 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-American.Option.Value(X.0 = c(3,0),
+output <- American.Option.Value(X.0 = c(3,0),
                      parameters = SS_oil$two_factor,
                      n = 1e2,
                      t = 1,
@@ -38,10 +38,10 @@ American.Option.Value(X.0 = c(3,0),
 
 ## ->
 
-American_option_value(x_0 = c(3,0),
+output <- American_option_value(x_0 = c(3,0),
                      parameters = SS_oil$two_factor,
                      N_simulations = 1e2,
-                     t = 1,
+                     option_maturity = 1,
                      dt = 1/12,
                      K = 20,
                      r = 0.05,

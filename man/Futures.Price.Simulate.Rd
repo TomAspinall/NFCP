@@ -13,18 +13,18 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-Futures.Price.Simulate(X.0 = c(log(SS.Oil$Spot[1,1]), 0),
-                     parameters = SS.Oil.Two.Factor,
+output <- Futures.Price.Simulate(X.0 = c(log(SS.Oil$Spot[1,1]), 0),
+                     parameters = SS.Oil$Two.Factor,
                      dt = SS.Oil$dt,
-                     N.obs = nrow(SS.Oil$Contracts),
-                     TTM = SS.Oil$Contract.Maturities)
+                     N.obs = nrow(SS.Oil$Stitched.Futures),
+                     TTM = SS.Oil$Stitched.TTM)
 
 ## ->
 
-futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
+output <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
                      parameters = SS_oil$two_factor,
                      dt = SS_oil$dt,
-                     n_obs = nrow(SS_oil$stitched_futures),
+                     N_obs = nrow(SS_oil$stitched_futures),
                      futures_TTM = SS_oil$stitched_TTM)
 }
 \keyword{internal}

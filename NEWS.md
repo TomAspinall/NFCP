@@ -1,3 +1,15 @@
+# NFCP 1.0.0
+
+- Original function names of the NFCP package are now deprecated and will be removed in a future version
+
+- Extensive function and parameter name changes to better fit the tidyverse style guide
+
+- Functions throughout the NFCP package now support the application of measurement errors that group contracts by set maturities. This is particularly useful for model estimation that uses full contract data, as it allows for the relaxing of the assumption that measurement errors are identical across observations.
+
+- Bug fixes for European option pricing
+
+- Other bug fixes and changes
+
 # NFCP 0.2.1
 
 - Minor bug fix to Ornstein-Uhlenbeck simulation of the 'Spot.Price.Simulate' function

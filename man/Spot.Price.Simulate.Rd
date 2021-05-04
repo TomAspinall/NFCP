@@ -21,7 +21,7 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-Spot.Price.Simulate(
+output <- Spot.Price.Simulate(
 X.0 = c(3,0),
 parameters = SS.Oil$Two.Factor,
 t = 1,
@@ -32,7 +32,7 @@ verbose = TRUE)
 
 ## ->
 
-spot_price_simulate(
+output <- spot_price_simulate(
  x_0 = c(3,0),
  parameters = SS_oil$two_factor,
  t = 1,

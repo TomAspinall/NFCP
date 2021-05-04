@@ -19,7 +19,7 @@ NFCP.Parameters(
 This function was deprecated due to a change in the name of the function to adhere to the tidyverse style guide.
 }
 \examples{
-NFCP.Parameters(N.factors = 2,
+output <- NFCP.Parameters(N.factors = 2,
                GBM = TRUE,
                Initial.State = FALSE,
                S.Constant = FALSE,
@@ -27,10 +27,9 @@ NFCP.Parameters(N.factors = 2,
 
 ## ->
 
-NFCP_parameters(N_factors = 2,
+output <- NFCP_parameters(N_factors = 2,
                GBM = TRUE,
                initial_states = FALSE,
-               fixed_ME = FALSE,
-               N_contracts = 5)
+               N_ME = 5)
 }
 \keyword{internal}

@@ -76,16 +76,30 @@ The following constant parameters are defined as:
 
 \code{var} \mjeqn{\rho_{i,j} \in [-1,1]}{rho[i,j] in [-1,1]}: Instantaneous correlation between state variables \mjeqn{i}{i} and \mjeqn{j}{j}.
 
-\bold{Measurement Error}:
+\bold{Disturbances - Measurement Error}:
 
-The Kalman filtering algorithm assumes a given measure of measurement error (ie. matrix \mjeqn{H}{H}). Measurement errors can be interpreted as error in the
-model's fit to observed prices, or as errors in the reporting of prices (Schwartz and Smith, 2000) and are assumed independent.
+The Kalman filtering algorithm assumes a given measure of measurement error or disturbance in the measurement equation (ie. matrix \mjeqn{H}{H}). Measurement errors can be interpreted as error in the
+model's fit to observed prices, or as errors in the reporting of prices (Schwartz and Smith, 2000). These disturbances are typically assumed independent.
 
-\code{var} \mjeqn{s_i}{s[i]} measurement error of contract \mjeqn{i}{i}.
+\code{var} \mjeqn{ME_i}{ME[i]} measurement error of contract \mjeqn{i}{i}.
 
-When \code{fixed_ME = T}, the values of parameter \mjeqn{s_i}{s[i]} are assumed constant and equal to parameter object 'ME'. When \code{fixed_ME = F}, observation errors are assumed unique, where the error of
-futures contracts \mjeqn{s_i}{s[i]} is equal to parameter object \code{'ME_'} [i] (i.e. \code{'ME_1'}, \code{'ME_2'}, ...).
+where the measurement error of futures contracts \mjeqn{ME_i}{ME[i]} is equal to \code{'ME_'} [i] (i.e. \code{'ME_1'}, \code{'ME_2'}, ...) specified in arguments \code{parameter_values} and \code{parameter_names}.
 
+There are three particular cases on how the measurement error of observations can be treated in the \code{NFCP_Kalman_filter} function:
+
+\bold{Case 1:} Only one ME is specified. The Kalman filter assumes that the measurement error of observations are independent and identical.
+
+\bold{Case 2:} One ME is specified for every observed futures contract. The Kalman filter assumes that the measurement error of observations are independent and unique.
+
+\bold{Case 3:} A series of ME's are specified for a given grouping of maturities of futures contracts. The Kalman filter assumes that the measurement error of observations are independent and unique to their respective time-to-maturity.
+
+Grouping of maturities for case 3 is specified through the \code{ME_TTM} argument. This is a vector that specifies the maximum maturity to consider for each respective ME parameter argument.
+
+in other words, ME_1 is considered for observations with TTM less than ME_TTM[1], ME_2 is considered for observations with TTM less than ME_TTM[2], ..., etc.
+
+The first case is clearly the simplest to estimate, but can be a restrictive assumption. The second case is clearly the most difficult to estimate, but can be an infeasible assumption when considering all available futures contracts that make up the term structure of a commodity.
+
+Case 3 thus serves to ease the restriction of case 1, and allow the user to make the modeling of measurement error as simple or complex as desired for a given set of maturities.
 
 
 \bold{Diffuse Assumption}:
@@ -97,8 +111,7 @@ If \code{initial_states = F}, a 'diffuse' assumption is made within Kalman filte
 two_factor_parameters <- NFCP_parameters(N_factors = 2,
                                         GBM = TRUE,
                                         initial_states = FALSE,
-                                        fixed_ME = FALSE,
-                                        N_contracts = 5)
+                                        N_ME = 5)
 print(two_factor_parameters)
 }
 \references{

@@ -23,7 +23,7 @@
 #'\code{futures_TTM} must be identical to that of \code{log_futures}. Every element of \code{futures_TTM}
 #'corresponds to the time to maturity, in years, of a futures contract at a given observation date.
 #'
-#'@param ME_TTM vector of maturity groupings to consider for observed futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameter values, and the maximum of ME_TTM must be greater than the maximum observed time-to-maturiy of a futures contract. When the number of 'ME' parameter values is equal to one or
+#'@param ME_TTM vector of maturity groupings to consider for observed futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameter values, and the maximum of ME_TTM must be greater than the maximum observed time-to-maturity of a futures contract. When the number of 'ME' parameter values is equal to one or
 #' the total number of contracts (i.e., columns of \code{log_futures}), this argument is optional and not considered. The measurement error of an observation is highly influenced by its time-to-maturity, see \bold{details}.
 #'
 #'@param verbose \code{logical}. Should additional information be output? see \bold{values}. When \code{verbose = F}, the \code{NFCP_Kalman_filter} function is significantly faster, see \bold{details}
@@ -562,7 +562,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
 
     ###Volatility TSFit:
     if(contract_data) {
-      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[,nrow(futures_TTM)], dt)
+      Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM[,ncol(futures_TTM)], dt)
     } else {
       Volatility_TSFit <- TSfit_volatility(params, exp(log_futures), futures_TTM, dt) }
 
@@ -571,7 +571,7 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
                   V = save_V, "Filtered Error" = Filtered_Error, "Term Structure Fit" = Term_Structure_Fit, "Term Structure Volatility Fit" = Volatility_TSFit)
 
     ##Debugging List:
-    if(debugging) output <- c(output, list(LL_t = LL_t, P_t = save_P, F_t = save_F, K_t = save_K, d_t = d, Z_t = Z, G_t = G_t, c_t = c_t, Q_t = Q_t, H_t = H))
+    if(debugging) output <- c(output, list(LL_t = LL_t, P_t = save_P, F_t = save_F, K_t = save_K, d_t = dtT, Z_t = Zt, G_t = G_t, c_t = c_t, Q_t = Q_t, H_t = Ht))
 
     #Return Output value:
     return(output)

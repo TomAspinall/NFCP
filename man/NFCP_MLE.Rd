@@ -196,7 +196,7 @@ SS_2F_estimated_model <- NFCP_MLE(
 log_futures = log(SS_oil$contracts)[1:20,1:5],
 dt = SS_oil$dt,
 futures_TTM= SS_oil$contract_maturities[1:20,1:5],
-fixed_ME = TRUE,
+N_ME = 1,
 N_factors = 1, GBM = TRUE,
 ####Genoud arguments:
 hessian = TRUE,

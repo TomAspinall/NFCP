@@ -21,9 +21,9 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-NFCP.Kalman.filter(
- parameter.values = SS_oil$two_factor,
- parameters = names(SS_oil$two_factor),
+output <- NFCP.Kalman.filter(
+ parameter.values = SS.Oil$Two.Factor,
+ parameters = names(SS.Oil$Two.Factor),
  log.futures = log(SS_oil$stitched_futures),
  TTM = SS_oil$stitched_TTM,
  dt = SS_oil$dt,
@@ -31,7 +31,7 @@ NFCP.Kalman.filter(
 
 ## ->
 
-NFCP_Kalman_filter(
+output <- NFCP_Kalman_filter(
 parameter_values = SS_oil$two_factor,
 parameter_names = names(SS_oil$two_factor),
 log_futures = log(SS_oil$stitched_futures),

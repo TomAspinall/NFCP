@@ -8,7 +8,7 @@ American_option_value(
   x_0,
   parameters,
   N_simulations,
-  t,
+  option_maturity,
   dt,
   K,
   r,
@@ -21,11 +21,11 @@ American_option_value(
 \arguments{
 \item{x_0}{Initial values of the state vector.}
 
-\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP.Parameters} is recommended.}
+\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
 \item{N_simulations}{total number of simulated price paths}
 
-\item{t}{Time to expiration of the option (in years)}
+\item{option_maturity}{Time to expiration of the option (in years)}
 
 \item{dt}{discrete time step of simulation}
 
@@ -67,10 +67,10 @@ When \code{debugging = T}, an additional 2 objects are returned within the \code
 }
 \description{
 Value American put options under the parameters of an N-factor model through the Least-Squares Monte Carlo (LSM) Simulation Method.
-This function is a wrapper to the 'LSM.AmericanOption' function of the 'LSMRealOptions' package.
+This function is a wrapper to the 'LSM_American_option' function of the 'LSMRealOptions' package.
 }
 \details{
-The 'American_option_value' function is a wrapper to the 'Spot.Price.Simulate' and 'LSM.AmericanOption' of the 'LSMRealOptions' package that
+The 'American_option_value' function is a wrapper to the 'spot_price_simulate' and 'LSM_American_option' of the 'LSMRealOptions' package that
 returns the value of American put options under a given N-factor model.
 
 The least-squares Monte Carlo (LSM) simulation method is an option valuation method first presented by Longstaff and Schwartz (2001) that
@@ -92,7 +92,7 @@ therefore increases the number of required basis functions exponentially.
 American_option_value(x_0 = log(36),
                      parameters = c(mu_rn = (0.06 - (1/2) * 0.2^2), sigma_1 = 0.2),
                      N_simulations = 1e2,
-                     t = 1,
+                     option_maturity = 1,
                      dt = 1/50,
                      K = 40,
                      r = 0.05,
@@ -115,7 +115,7 @@ Schwartz_Smith_oil <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
 American_option_value(x_0 = Schwartz_Smith_oil$x_t,
                      parameters = SS_oil$two_factor,
                      N_simulations = 1e2,
-                     t = 1,
+                     option_maturity = 1,
                      dt = 1/12,
                      K = 20,
                      r = 0.05,

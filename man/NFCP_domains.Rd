@@ -57,7 +57,7 @@ allows easy setting of custom boundaries for parameter estimation, whilst also p
 parameters_2F <- NFCP_parameters(N_factors = 2,
                                         GBM = TRUE,
                                         initial_states = TRUE,
-                                        fixed_ME = TRUE)
+                                        N_ME = 1)
 
 ###Generate the default 'domains' argument of 'NFCP_MLE' function:
 NFCP_MLE_bounds <- NFCP_domains(parameters_2F)

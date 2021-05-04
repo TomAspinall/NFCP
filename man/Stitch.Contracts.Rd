@@ -20,13 +20,13 @@ This function was deprecated due to a change in the name of the function to adhe
 }
 \examples{
 
-Stitch.Contracts(Futures = SS.Oil$Contracts,
+output <- Stitch.Contracts(Futures = SS.Oil$Contracts,
 TTM = c(1, 5, 9, 13, 17)/12, maturity.matrix = SS.Oil$Contract.Maturities,
 rollover.frequency = 1/12, verbose = TRUE)
 
 ## ->
 
-stitch_contracts(futures = SS_oil$contracts,
+output <- stitch_contracts(futures = SS_oil$contracts,
                futures_TTM = c(1, 5, 9, 13, 17)/12,
                maturity_matrix = SS_oil$contract_maturities,
                rollover_frequency = 1/12, verbose = TRUE)
