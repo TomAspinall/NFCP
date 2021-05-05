@@ -1,3 +1,7 @@
+# NFCP 1.0.1
+
+- Minor bug fix in the 'NFCP_Kalman_filter' function
+
 # NFCP 1.0.0
 
 - Original function names of the NFCP package are now deprecated and will be removed in a future version
