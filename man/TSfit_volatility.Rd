@@ -7,25 +7,25 @@
 TSfit_volatility(parameters, futures, futures_TTM, dt)
 }
 \arguments{
-\item{parameters}{A named vector of parameters of an N-factor model. Function \code{NFCP.Parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameters of an N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{futures}{A Matrix of futures price data. Each column corresponds to a given futures contract, and each row is an observation of the futures contracts.}
+\item{futures}{\code{matrix}. Historical observes futures price data. Each column must correspond to a listed futures contract and each row must correspond to a discrete observation of futures contracts. NA's are permitted.}
 
-\item{futures_TTM}{A vector listing the Time to Maturities of each listed futures contract from the current observation point.}
+\item{futures_TTM}{\code{vector}. Each element of 'futures_TTM' must correspond to the time-to-maturity from the current observation point of futures contracts listed in object 'futures'.}
 
-\item{dt}{Numeric. The length of the discrete time step (years).}
+\item{dt}{\code{numeric}. Constant, discrete time step of observations, in years.}
 }
 \value{
 \code{TSfit_volatility} returns a matrix with the theoretical and empirical volatility term structure of futures returns, with the number of columns of this matrix coinciding with the number of input futures contracts.
 }
 \description{
-Estimate the Theoretical and Empirical Volatility Term Structure of futures returns
+Estimate the theoretical and empirical volatility term structure of futures returns
 }
 \details{
 \loadmathjax
 
-The fit of the models theoretical volatility term structure of futures returns to those obtained directly from observed futures prices can be used as an additional measure of robustness for
-the models ability to explain the behavior of a commodities term structure. A commodity pricing model should capture all dynamics of a commodities term structure,
+The fit of an N-factor models theoretical volatility term structure of futures returns to those obtained directly from observed futures prices can be used as a measure of robustness for
+the models ability to explain the behaviour of a commodities term structure.
 
 The theoretical model volatility term structure of futures returns is given by the following equation:
 

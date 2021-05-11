@@ -2,7 +2,7 @@
 % Please edit documentation in R/option_valuation.R
 \name{European_option_value}
 \alias{European_option_value}
-\title{N-factor model European option pricing}
+\title{N-factor model European options on futures contracts valuation}
 \usage{
 European_option_value(
   x_0,
@@ -11,26 +11,26 @@ European_option_value(
   option_maturity,
   K,
   r,
-  call,
+  call = FALSE,
   verbose = FALSE
 )
 }
 \arguments{
-\item{x_0}{Initial values of the state vector.}
+\item{x_0}{\code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.}
 
-\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{futures_maturity}{Time, in years, when the underlying futures contract matures.}
+\item{futures_maturity}{\code{numeric}. Time, in years, when the underlying futures contract matures.}
 
-\item{option_maturity}{Time, in years,  when the European option expires.}
+\item{option_maturity}{\code{numeric}. Time, in years,  when the American option expires.}
 
-\item{K}{Strike price of the European Option}
+\item{K}{\code{numeric}. Strike price of the American Option.}
 
-\item{r}{Risk-free interest rate.}
+\item{r}{\code{numeric}. Annualized risk-free interest rate.}
 
-\item{call}{\code{logical} is the European option a call or put option?}
+\item{call}{\code{logical}. Is the American option a call or put option?}
 
-\item{verbose}{\code{logical}. Should additional information be output? see \bold{details}}
+\item{verbose}{\code{logical}. Should additional option value information be output? see \bold{details}.}
 }
 \value{
 The \code{European_option_value} function returns a numeric value corresponding to the present value of an option when \code{verbose = F}.
@@ -54,7 +54,12 @@ Value European Option Put and Calls under the parameters of an N-factor model.
 \details{
 \loadmathjax
 
-The \code{European_option_value} function calculates analytic expressions of the value of European call and put options on futures contracts within the N-factor model. Under the assumption that future futures prices
+The \code{European_option_value} function calculates analytic expressions of the value of European call and put options on futures contracts within the N-factor model. A European option on a commodity futures contract gives the holder
+the right, but not the obligation, to buy (call) or sell (put) the underlying asset at option maturity. If the European option is exercised, the option devolves into buying or selling of the underlying futures asset.
+
+State variables (i.e., the states of the factors of an N-factor model) are generally unobservable. Filtering the commodity pricing model using term structure data will provide the most recent optimal estimates of state variables, which can then be used to forecast and value European options.
+
+Under the assumption that future futures prices
 are log-normally distributed under the risk-neutral process, there exist analytic expressions of the value of European call and put options on futures contracts. The following analytic expression follows from that presented by Schwartz and Smith (2000) extended to the N-factor framework. The value of a European option on a futures contract
 is given by calculating its expected future value using the risk-neutral process and subsequently discounting at the risk-free rate.
 
@@ -103,25 +108,13 @@ When \code{verbose = T}, the \code{European_option_value} function numerically c
 "Greeks" related to European put and call option pricing. All gradients are calculated numerically by calling the \code{grad} function from the \code{numDeriv} package.
 }
 \examples{
-##Example 1 - A European 'put' option on a stock following 'GBM'
-##growing at the risk-free rate:
+##Example 1 - A European 'put' option on a futures contract following 'GBM'
 
-### Risk-free rate:
-rf <- 0.05
-### Stock price:
-S_0 <- 20
-### Stock volatility:
-S_sigma <- 0.2
-### Option maturity:
-Tt <- 1
-### Exercise price:
-K <- 20
-### Calculate 'put' option price:
-European_option_value(x_0 = log(S_0), parameters = c(mu_rn = rf, sigma_1 = S_sigma),
-                     futures_maturity = Tt, option_maturity = 1,
-                     K = K, r = rf, call = FALSE, verbose = TRUE)
+European_option_value(x_0 = log(20), parameters = c(mu_rn = 0.06, sigma_1 = 0.2),
+                     futures_maturity = 1, option_maturity = 1,
+                     K = 20, r = 0.06, call = FALSE, verbose = TRUE)
 
-##Example 2 - A European call option under a two-factor crude oil model:
+##Example 2 - A European put option under a two-factor crude oil model:
 
 ##Step 1 - Obtain current (i.e. most recent) state vector by filtering the
 ##two-factor oil model:
@@ -135,11 +128,11 @@ Schwartz_Smith_oil <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
 ##Step 2 - Calculate 'call' option price:
 European_option_value(x_0 = Schwartz_Smith_oil$x_t,
                      parameters = SS_oil$two_factor,
-                     futures_maturity = 1,
+                     futures_maturity = 2,
                      option_maturity = 1,
                      K = 20,
                      r = 0.05,
-                     call = TRUE,
+                     call = FALSE,
                      verbose = FALSE)
 }
 \references{

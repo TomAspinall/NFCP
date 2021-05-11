@@ -1,3 +1,10 @@
+# NFCP 1.1.0
+
+- The 'NFCP' package now allows for the consideration of deterministic seasonality within commodity pricing models throughout the package.
+- The 'American_option_value' function now calculates American option on futures contracts of commodities, which is more reflective of actual options in commodity markets.
+- The vignette of 'NFCP' has been updated, with more detail throughout the document.
+- Deprecated function names removed
+
 # NFCP 1.0.1
 
 - Minor bug fix in the 'NFCP_Kalman_filter' function

@@ -1,79 +1,89 @@
-###This is a wrapper to use the rgenoud optimization algorithm for parameter estimation:
-
 #' N-factor model parameter estimation through the Kalman filter and maximum likelihood estimation
 #'
 #'@description
 #'\loadmathjax
-#'the \code{NFCP_MLE} function performs parameter estimation of an n-factor model given observable term structure futures data through maximum likelihood estimation.
-#' \code{NFCP_MLE} allows for missing observations as well as constant or variable time to maturity of observed futures contracts.
+#'The \code{NFCP_MLE} function performs parameter estimation of commodity pricing models under the N-factor framework of Cortazar and Naranjo (2006). It uses term structure futures data and estimates unknown paraemeters through maximum likelihood estimation.
+#' \code{NFCP_MLE} allows for missing observations, a variable number of state variables, deterministic seasonality, differing treatment of the measurement error of the model as well as either constant or variable time to maturities of term structure observations.
 #'
-#'@param log_futures Object of class \code{matrix} corresponding to the natural logarithm of observable futures prices.
-#'NA's are allowed within the \code{matrix}. Every column of the matrix must correspond to a particular futures contract,
-#'with each row corresponding to a quoted price on a given date.
+#'@param log_futures \code{matrix}. The natural logarithm of observed futures prices. Each row must correspond to quoted futures prices at a particular date and every column must correspond to a unique futures contract.
+#'NA values are allowed.
 #'
-#'@param futures_TTM Object of class \code{vector} or \code{matrix} that specifies the time to maturity of observed futures contracts.
-#'time to maturity can be either constant (i.e. class \code{vector}) or time dependent (i.e. class \code{matrix}).
-#'When the time to maturity of observed futures contracts is time dependent, the dimensions of
-#'\code{futures_TTM} must be identical to that of \code{log_futures}. Every element of \code{futures_TTM}
-#'corresponds to the time to maturity, in years, of a futures contract at a given observation date.
+#'@param dt \code{numeric}. Constant, discrete time step of observations, in years.
 #'
-#'@param dt Constant, discrete time step of observations
+#'@param futures_TTM \code{vector} or \code{matrix}.  The time-to-maturity of observed futures contracts, in years, at a given observation date. This time-to-maturity can either be constant (ie. class 'vector') or variable (ie. class 'matrix') across observations.
+#'The number of columns of 'futures_TTM' must be identical to the number of columns of object 'log_futures'. The number of rows of object 'futures_TTM' must be either 1 or equal to the number of rows of object 'log_futures'.
 #'
 #'@param N_factors \code{numeric}. Number of state variables in the spot price process.
 #'
-#' @param N_ME \code{numeric}. The number of independent measuring errors of observable futures contracts to consider in the Kalman filter.
+#'@param N_season \code{numeric}. The number of deterministic, cyclical seasonal factors to include in the spot price process.
 #'
-#'@param ME_TTM vector of maturity groupings to consider for observed futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameter values, and the maximum of ME_TTM must be greater than the maximum observed time-to-maturiy of a futures contract. When the number of 'ME' parameter values is equal to one or
-#' the total number of contracts (i.e., columns of \code{log_futures}), this argument is optional and not considered. The measurement error of an observation is highly influenced by its time-to-maturity, see \bold{details}.
+#'@param N_ME \code{numeric}. The number of independent measuring errors of observable futures contracts to consider in the Kalman filter.
+#'
+#'@param ME_TTM \code{vector}. the time-to-maturity groupings to consider for observed futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameters specified in object 'parameter_names'. The maximum of 'ME_TTM' must be greater than the maximum value of 'futures_TTM'.
+#'When the number of 'ME' parameter values is equal to one or the number of columns of object 'log_futures', this argument is ignored.
 #'
 #'@param GBM \code{logical}. When \code{TRUE}, factor 1 of the model is assumed to follow a Brownian Motion, inducing a unit-root in the spot price process.
 #'
-#'@param estimate_initial_state  \code{logical}. When \code{TRUE}, the initial state vector is specified as unknown parameters of the commodity pricing model. When \code{FALSE},
-#'a "diffuse" assumption is taken instead (see \bold{details})
+#'@param estimate_initial_state  \code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).
 #'
 #'@param Richardsons_extrapolation \code{logical}. When \code{TRUE}, the \code{grad} function from the \code{numDeriv} package is called to
 #'approximate the gradient within the \code{genoud} optimization algorithm.
 #'
-#'@param cluster 	an optional object of the 'cluster' class returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
+#'@param cluster \code{cluster}.	An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 #'to be performed across multiple cluster nodes.
 #'
-#'@param Domains an optional \code{matrix} of the lower and upper bounds for the parameter estimation process. The \code{NFCP_domains} function is highly recommended.
+#'@param Domains \code{matrix}. An optional object with two-columns specifiying the lower and upper bounds for the parameter estimation process. The \code{NFCP_domains} function is highly recommended.
 #'When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP_domains} function are used.
 #'
-#'@param ... additional arguments to be passed into the \code{genoud} function. See \code{help(genoud)}
+#'@param ... additional arguments to be passed into the \code{genoud} genetic algorithm optimization procedure. See \code{help(genoud)}
 #'
 #'@details
 #'
-#'\code{NFCP_MLE} is a wrapper function that uses the genetic algorithm optimization function \code{genoud} from the \code{rgenoud}
-#'package to optimize the log-likelihood score returned from the \code{NFCP_Kalman_filter} function. When \code{Richardsons_extrapolation = TRUE}, gradients are approximated
-#'numerically within the optimization algorithm through the \code{grad} function from the \code{numDeriv} package. \code{NFCP_MLE} is designed
-#'to perform parameter estimation as efficiently as possible, ensuring a global optimum is reached even with a large number of unknown parameters and state variables. Arguments
-#'passed to the \code{genoud} function can greatly influence estimated parameters and must be considered when performing parameter estimation. Recommended arguments to pass
-#'into the \code{genoud} function are included within the vignette of \code{NFCP}. All arguments of the \code{genoud} function may be passed through the \code{NFCP_MLE}
-#'function (except for \code{gradient.check}, which is hard set to false).
+#'The \code{NFCP_MLE} function facilitates parameter estimation of commodity pricing models under the N-factor framework through the Kalman filter and maximum likelihood estimation. \code{NFCP_MLE}
+#'uses genetic algorithms through the \code{genoud} function of the \code{rgenoud} package to numerically optimize the log-likelihood score returned from the \code{NFCP_Kalman_filter} function.
+#'
+#'Parameter estimation of commodity pricing models can involve a large number of observations, state variables and unknown parameters. It also features an objective log-likelihood function that is nonlinear and
+#'discontinuous with respect to model parameters. \code{NFCP_MLE} is designed to perform parameter estimation as efficiently as possible, maximizing the likelihood of attaining a global optimum.
+#'
+#'When \code{Richardsons_extrapolation = TRUE}, gradients are approximated of the numeric optimization algorithm are approximated through the \code{grad} function of the \code{numDeriv} pacakage. Richardsons
+#'extrapolation is regarded for its ability to improve the approximation of estimation methods, which may improve the likelihood of obtained a global maxmimum estimate of the log-likelihood.
+#'
+#'Arguments passed to the \code{genoud} function can greatly influence estimated parameters as well as computation time and must be considered when performing parameter estimation. All arguments of the \code{genoud} function
+#'may be passed through the \code{NFCP_MLE} function (except for \code{gradient.check}, which is hard set to false).
+#'
+#'The population size can highly influence parameter estimates at the expense of increased computation time. For commodity pricing models with a large number of unknown parameters, large population sizes may be necessary to maximize the estimation process.
 #'
 #'\code{NFCP_MLE} performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
-#'the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by \code{Domains}. When \code{Domains} is not specified, the default
-#'bounds specified by the \code{NFCP_domains} function are used.
+#'the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by argument \code{Domains}.
+#'
+#'When \code{Domains} is not specified, the default bounds specified by the \code{NFCP_domains} function are used. The size of the search domains of unknown parameters can highly
+#'influence the computation time of the \code{NFCP_MLE} function, however setting domains that are too restrictive may result in estimated parameters returned at the upper or lower bounds.
+#'
+#'Finally, the maximum likelihood estimation process of parameters provides no in-built guarantee that the estimated parameters of commodity models are financially sensible results. When the commodity model has been over-parameterized
+#'(i.e., the number of factors N specified is too high) or the optimization algorithm has failed to attain a global maximum likelihood estimate, the estimated parameters may be irrational.
+#'
+#'Evidence of irrational parameter estimates include correlation coefficients that are extremely large (e.g., > 0.95 or < -0.95), risk-premiums or drift terms that are unrealistic, filtered state variables that are unrealistic and extremely large/small mean-reverting terms with associated large standard errors.
+#'
+#'Irrational parameter estimates may indicate that the number of stochastic factors (i.e., \code{N_factors}) of the model or number of seasonal factors (i.e., \code{N_season}) are too high.
 #'
 #'\bold{The N-factor model}
-#'The N-factor model was first presented in the work of Cortazar and Naranjo (2006, equations 1-3). The N-factor framework
-#'describes the spot price process of a commodity as the correlated sum of \mjeqn{N}{N} state variables \mjeqn{x_t}{x[t]}.
+#'The N-factor framework was first presented in the work of Cortazar and Naranjo (2006, equations 1-3).
+#'It is a risk-premium class of commodity pricing model, in which futures prices are given by discounted expected future spot prices,
+#'where these spot prices are discounted at a given level of risk-premium, known as the cost-of-carry.
+#'
+#'The N-factor framework describes the spot price process of a commodity as the correlated sum of \mjeqn{N}{N} state variables \mjeqn{x_t}{x[t]}. The 'NFCP' package also allows for a deterministic,
+#'cyclical seasonal function \mjeqn{season(t)}{season(t)} to be considered.
 #'
 #'When \code{GBM = TRUE}:
-#'\mjdeqn{log(S_{t}) = \sum_{i=1}^N x_{i,t}}{log(S[t]) = sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 #'When \code{GBM = FALSE}:
-#'\mjdeqn{log(S_{t}) = E + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 #'
-#'Additional factors within the spot-price process are designed to result in additional flexibility, and possibly fit to the observable term structure, in
-#' the spot price process of a commodity. The fit of different N-factor models, represented by the log-likelihood can be directly compared with statistical
-#' testing possible through a chi-squared test.
+#'Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 #'
-#'Flexibility in the spot price under the N-factor framework allows the first factor to follow a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root.
-#'In general, an N-factor model where \code{GBM = T}
-#'allows for non-reversible behaviour within the price of a commodity, whilst \code{GBM = F} assumes that there is a long-run equilibrium that
-#'the commodity price will revert to in the long-term.
+#'When \code{GBM = TRUE}, the first factor corresponds to the spot price, and additional N-1 factors model the cost-of-carry.
 #'
+#'When \code{GBM = FALSE}, the commodity model assumes that there is a long-term equilibrium the commodity price will tend towards over time, with model volatility a decreasing function of time. This is not the standard approach made in the commodity pricing literature (Cortazar and Naranjo, 2006).
 #'
 #'State variables are thus assumed to follow the following processes:
 #'
@@ -89,21 +99,31 @@
 #'where:
 #'\mjdeqn{E(w_{i})E(w_{j}) = \rho_{i,j}}{E(w[i])E(w[j])}
 #'
+#'Additionally, the deterministic seasonal function (if specified) is given by:
+#'
+#'\mjdeqn{season(t) = \sum_{i=1} ( season_{i,1} cos(2i\pi) + season_{i,2} sin(2i\pi)}{season(t) = sum_{i=1} ( season_{i,1} cos(2.i.pi) + season_{i,2} sin(2.i.pi)}
+#'
+#'The addition of deterministic, cyclical seasonality as a function of trigonometric variables was first suggested by Hannan, Terrell, and Tuckwell (1970) and first applied to model commodities by Sørensen (2002).
+#'
 #'The following constant parameters are defined as:
 #'
-#'\code{param} \mjeqn{\mu}{mu}:  long-term growth rate of the Brownian Motion process.
+#'\code{var} \mjeqn{\mu}{mu}:  long-term growth rate of the Brownian Motion process.
 #'
-#'\code{param} \mjeqn{E}{E}: Constant equilibrium level.
+#'\code{var} \mjeqn{E}{E}: Constant equilibrium level.
 #'
-#'\code{param} \mjeqn{\mu^*=\mu-\lambda_1}{mu^* = mu-lambda[1]}: Long-term risk-neutral growth rate
+#'\code{var} \mjeqn{\mu^*=\mu-\lambda_1}{mu^* = mu-lambda[1]}: Long-term risk-neutral growth rate
 #'
-#'\code{param} \mjeqn{\lambda_{i}}{lambda[i]}: Risk premium of state variable \mjeqn{i}{i}.
+#'\code{var} \mjeqn{\lambda_{i}}{lambda[i]}: Risk premium of state variable \mjeqn{i}{i}.
 #'
-#'\code{param} \mjeqn{\kappa_{i}}{kappa[i]}: Reversion rate of state variable \mjeqn{i}{i}.
+#'\code{var} \mjeqn{\kappa_{i}}{kappa[i]}: Reversion rate of state variable \mjeqn{i}{i}.
 #'
-#'\code{param} \mjeqn{\sigma_{i}}{sigma[i]}: Instantaneous volatility of state variable \mjeqn{i}{i}.
+#'\code{var} \mjeqn{\sigma_{i}}{sigma[i]}: Instantaneous volatility of state variable \mjeqn{i}{i}.
 #'
-#'\code{param} \mjeqn{\rho_{i,j} \in [-1,1]}{rho[i,j] in [-1,1]}: Instantaneous correlation between state variables \mjeqn{i}{i} and \mjeqn{j}{j}.
+#'\code{var} \mjeqn{\rho_{i,j} \in [-1,1]}{rho[i,j] in [-1,1]}: Instantaneous correlation between state variables \mjeqn{i}{i} and \mjeqn{j}{j}.
+#'
+#'Including additional factors within the spot-price process allow for additional flexibility (and possibly fit) to the term structure of a commodity.
+#'The N-factor model nests simpler models within its framework, allowing for the fit of different N-factor models (applied to the same term structure data),
+#'represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test.
 #'
 #'\bold{Disturbances - Measurement Error}:
 #'
@@ -130,50 +150,61 @@
 #'
 #'Case 3 thus serves to ease the restriction of case 1, and allow the user to make the modeling of measurement error as simple or complex as desired for a given set of maturities.
 #'
-#'\bold{Diffuse Kalman Filtering}
+#'\bold{Diffuse Kalman filtering}
 #'
-#'If \code{estimate_initial_state = F}, a 'diffuse' assumption is used within the Kalman filtering algorithm. Factors that follow an Ornstein-Uhlenbeck are assumed to equal zero. When
-#'\code{estimate_initial_state = F} and \code{GBM = T}, the initial value of the first state variable is assumed to equal the first element of \code{log_futures}. This is an
+#'If the initial values of the state vector are not supplied within the \code{parameter_names} and \code{parameter_values} vectors, a 'diffuse' assumption is used within the Kalman filtering algorithm.
+#'Initial states of factors that follow an Ornstein-Uhlenbeck are assumed to equal zero.
+#'The initial state of the first factor, given that it follows a Brownian motion, is assumed equal to the first element of \code{log_futures}. This is an
 #'assumption that the initial estimate of the spot price is equal to the closest to maturity observed futures price.
 #'
-#'The initial covariance of the state vector for the Kalman Filtering algorithm assumed to be equal to matrix \mjeqn{Q}{Q}
-#'
-#'Initial states of factors that follow an Ornstein-Uhlenbeck process are generally not estimated with a high level of precision, due to the transient effect of the initial state vector on future
-#'observations, however the initial value of a random walk variable persists across observations (see Schwartz and Smith (2000) for more details).
+#'The initial states of factors that follow an Ornstein-Uhlenbeck have a transient effect on future observations. This makes the diffuse assumption reasonable and further means that initial states cannot generally be accurately estimated.
 #'
 #'@return
 #'\code{NFCP_MLE} returns a \code{list} with 10 objects. 9 objects are returned when the user has specified not to calculate the hessian matrix at solution.
 #'
 #'\tabular{ll}{
 #'
-#'\code{MLE} \tab \code{numeric} The Maximum-Likelihood-Estimate of the solution \cr
+#'\code{MLE} \tab \code{numeric} The Maximum-Likelihood-Estimate of the solution. \cr
 #'
-#'\code{estimated_parameters} \tab \code{vector}. The estimated parameters \cr
+#'\code{estimated_parameters} \tab \code{vector}. Estimated parameters. \cr
 #'
-#'\code{standard_errors} \tab \code{vector}. Standard error of the estimated parameters. Returned only when \code{hessian = T} is specified  \cr
+#'\code{standard_errors} \tab \code{vector}. Standard error of the estimated parameters. Returned only when \code{hessian = T} is specified.  \cr
 #'
-#'\code{x_t} \tab \code{vector}. The final observation of the state vector \cr
+#'\code{Information Criteria} \tab \code{vector}. The Akaikie and Bayesian Information Criterion. \cr
 #'
-#'\code{X} \tab \code{matrix}. All observations of the state vector, after the updating equation has been applied \cr
+#'\code{x_t} \tab \code{vector}. The final observation of the state vector. \cr
 #'
-#'\code{Y} \tab \code{matrix}. Estimated futures prices at each observation \cr
+#'\code{X} \tab \code{matrix}. Optimal one-step-ahead state vector. \cr
 #'
-#'\code{V} \tab \code{matrix}. Estimation error of each futures contracts at each observation \cr
+#'\code{Y} \tab \code{matrix}. Estimated futures prices. \cr
 #'
-#'\code{Filtered Error} \tab \code{matrix}. The Mean Error (Bias), Mean Absolute Error, Standard Deviation of Error and Root Mean Squared Error (RMSE) of each
-#'observed contract, matching the column names of \code{log_futures}  \cr
+#'\code{V} \tab \code{matrix}. Estimation error. \cr
 #'
-#'\code{Term Structure Volatility Fit} \tab \code{matrix}. The theoretical and empirical volatility of futures returns for each observed contract as returned from the \code{TSFit.Volatility} function \cr
+#'\code{Filtered Error} \tab \code{matrix}. positive mean error (high bias), negative mean error (low bias),
+#'
+#'mean error (bias) and root mean squared error (RMSE)
+#'
+#'of the filtered values to observed futures prices.  \cr
+#'
+#'\code{Term Structure Fit} \tab \code{matrix}. The mean error (Bias), mean absolute error, standard deviation of error
+#'
+#'  and root mean squared error (RMSE) of each observed futures contract. \cr
+#'
+#'\code{Term Structure Volatility Fit} \tab \code{matrix}. Theoretical and empirical volatility of observed futures contract returns \cr
 #'
 #'\code{proc_time} \tab \code{list}. The real and CPU time (in seconds) the \code{NFCP_MLE} function has taken. \cr
 #'
-#'\code{genoud_value} \tab \code{list}. The output of the called \code{genoud} function.
+#'\code{genoud_value} \tab \code{list}. Outputs of \code{genoud}.
 #'
 #' }
 #'
 #'@references
 #'
+#'Hannan, E. J., et al. (1970). "The seasonal adjustment of economic time series." \emph{International economic review}, 11(1): 24-52.
+#'
 #'Schwartz, E. S., and J. E. Smith, (2000). Short-Term Variations and Long-Term Dynamics in Commodity Prices. \emph{Manage. Sci.}, 46, 893-911.
+#'
+#'Sørensen, C. (2002). "Modeling seasonality in agricultural commodity futures." \emph{Journal of Futures Markets: Futures, Options, and Other Derivative Products} 22(5): 393-426.
 #'
 #'Cortazar, G., and L. Naranjo, (2006). An N-factor Gaussian model of oil futures prices. \emph{Journal of Futures Markets: Futures, Options, and Other Derivative Products}, 26(3), 243-268.
 #'
@@ -181,23 +212,22 @@
 #'\emph{Journal of Statistical Software}, 42(11), 1-26. URL http://www.jstatsoft.org/v42/i11/.
 #'
 #' @examples
-#'##Perform One Generation of Maximum Likelihood Estimation on the
-#'##first 20 weekly observations of the Schwartz and Smith (2000) Crude Oil Data:
+#'# Estimate the Short-Term/Long-Term Model:
 #'SS_2F_estimated_model <- NFCP_MLE(
-#'####Arguments
+#'## Arguments
 #'log_futures = log(SS_oil$contracts)[1:20,1:5],
 #'dt = SS_oil$dt,
 #'futures_TTM= SS_oil$contract_maturities[1:20,1:5],
 #'N_ME = 1,
 #'N_factors = 1, GBM = TRUE,
-#'####Genoud arguments:
+#'## Genoud arguments:
 #'hessian = TRUE,
 #'Richardsons_extrapolation = FALSE,
 #'pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
 #'max.generations = 0, solution.tolerance = 10)
 #'
 #'@export
-NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE,
+NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE,
                                   Richardsons_extrapolation = TRUE, cluster = FALSE, Domains = NULL, ...){
 
   time_0 <- proc.time()
@@ -220,7 +250,7 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_ME = 1, ME_TTM =
   }
 
   ##Unknown Parameters:
-  parameters <- NFCP::NFCP_parameters(N_factors, GBM, estimate_initial_state, N_ME)
+  parameters <- NFCP::NFCP_parameters(N_factors, GBM, estimate_initial_state, N_ME, N_season)
 
   cat("----------------------------------------------------------------
 Term Structure Estimation: \n")

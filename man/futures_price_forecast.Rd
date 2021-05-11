@@ -13,15 +13,15 @@ futures_price_forecast(
 )
 }
 \arguments{
-\item{x_0}{Initial values of the state vector.}
+\item{x_0}{\code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.}
 
-\item{parameters}{A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{t}{a numeric specifying the time point at which to forecast futures prices}
+\item{t}{\code{numeric}. The time point, in years, at which to forecast futures prices.}
 
-\item{futures_TTM}{a vector specifying the time to maturity of futures contracts to value.}
+\item{futures_TTM}{\code{vector}. the time-to-maturity, in years, of futures contracts to forecast.}
 
-\item{percentiles}{Optional. A vector of percentiles to include probabilistic forecasting intervals.}
+\item{percentiles}{\code{vector}. Optional. Probabilistic forecasting percentile intervals.}
 }
 \value{
 \code{futures_price_forecast} returns a vector of expected Futures prices under a given N-factor model with specified time to maturities at time \mjeqn{t}{t}.  When \code{percentiles} are specified, the function returns a matrix with the corresponding confidence bands in each column of the matrix.
@@ -35,7 +35,7 @@ Under the assumption or risk-neutrality, futures prices are equal to the expecte
 denote the market price of a futures contract at time \mjeqn{t}{t} with time \mjeqn{T}{T} until maturity. let * denote the risk-neutral expectation and variance of futures prices.
 The following equations assume that the first factor follows a Brownian Motion.
 
-\mjdeqn{E^*[ln(F_{T,t})] =\sum_{i=1}^Ne^{-\kappa_iT}x_{i}(0) + \mu^*t +  A(T-t)}{E^*[ln(F[T,t])] = sum_{i=1}^N (e^(-kappa[i] T) x[i,0] + mu * t + A(T-t))}
+\mjdeqn{E^*[ln(F_{T,t})] = season(T) + \sum_{i=1}^Ne^{-\kappa_iT}x_{i}(0) + \mu^*t +  A(T-t)}{E^*[ln(F[T,t])] = season(T) + sum_{i=1}^N (e^(-kappa[i] T) x[i,0] + mu * t + A(T-t))}
 
 Where:
 \mjdeqn{A(T-t) = \mu^*(T-t)-\sum_{i=1}^N - \frac{1-e^{-\kappa_i (T-t)}\lambda_i}{\kappa_i}+\frac{1}{2}(\sigma_1^2(T-t) + \sum_{i.j\neq 1} \sigma_i \sigma_j \rho_{i,j} \frac{1-e^{-(\kappa_i+\kappa_j)(T-t)}}{\kappa_i+\kappa_j})}{

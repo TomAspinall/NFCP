@@ -12,6 +12,7 @@ NFCP_domains(
   mu = NULL,
   mu_rn = NULL,
   rho = NULL,
+  season = NULL,
   ME = NULL,
   x_0 = NULL,
   E = NULL
@@ -31,6 +32,8 @@ NFCP_domains(
 \item{mu_rn}{A vector of length two specifying the lower and upper bounds for the 'mu_rn' parameter}
 
 \item{rho}{A vector of length two specifying the lower and upper bounds for the 'rho' parameter}
+
+\item{season}{A vector of length two specifying the lower and upper bounds for the 'season' parameter}
 
 \item{ME}{A vector of length two specifying the lower and upper bounds for the 'ME' (i.e., measurement error) parameter}
 

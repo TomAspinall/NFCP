@@ -15,19 +15,19 @@ spot_price_simulate(
 )
 }
 \arguments{
-\item{x_0}{Initial values of the state vector.}
+\item{x_0}{\code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.}
 
-\item{parameters}{A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{t}{the number of years to simulate}
+\item{t}{\code{numeric}. Number of years to simulate.}
 
-\item{dt}{discrete time step of simulation}
+\item{dt}{\code{numeric}. Discrete time step, in years, of the Monte Carlo simulation.}
 
-\item{N_simulations}{total number of simulations}
+\item{N_simulations}{\code{numeric}. The total number of Monte Carlo simulations.}
 
 \item{antithetic}{\code{logical}. Should antithetic price paths be simulated?}
 
-\item{verbose}{\code{logical}. Should simulated state variables be output? see \bold{returns}}
+\item{verbose}{\code{logical}. Should simulated state variables be output?}
 }
 \value{
 \code{spot_price_simulate} returns a list when \code{verbose = T} and a matrix of simulated price paths when \code{verbose = F}. The returned objects in the list are:
@@ -45,11 +45,11 @@ Simulate risk-neutral price paths of an an N-factor commodity pricing model thro
 }
 \details{
 \loadmathjax
-The \code{spot_price_simulate} function is able to quickly simulate a large number of risk-neutral price paths of a commodity following the N-factor model.
+The \code{spot_price_simulate} function is able to quickly and efficiently simulate a large number of state variables and risk-neutral price paths of a commodity following the N-factor model.
 Simulating risk-neutral price paths of a commodity under an N-factor model through Monte Carlo simulations allows for the
-valuation of commodity related investments and derivatives, such as American Options and Real Options through dynamic programming methods.
+valuation of commodity related investments and derivatives, such as American options and real Options through dynamic programming methods.
 The \code{spot_price_simulate} function quickly and efficiently simulates an N-factor model over a specified number of years, simulating antithetic price paths as a simple variance reduction technique.
-The \code{spot_price_simulate} function uses the \code{mvrnorm} function from the \code{MASS} package to draw from a multivariate normal distribution for the simulation shocks.
+The \code{spot_price_simulate} function uses the \code{mvrnorm} function from the \code{MASS} package to draw from a multivariate normal distribution for the correlated simulation shocks of state variables.
 
 The N-factor model stochastic differential equation is given by:
 
@@ -67,14 +67,14 @@ e^(kappa[i] * s) dW[s])}
 
 Where a numerical solution is obtained by numerically discretising and approximating the integral term using the Euler-Maruyama integration scheme:
 \mjdeqn{\int_0^t\sigma_ie^{\kappa_is}dW_s = \sum_{j=0}^t \sigma_ie^{\kappa_ij}dW_s}{int_0^t ( sigma[i] e^(kappa[i] * s) dw[s])}
+
+Finally, deterministic seasonality is considered within the spot prices of simulated price paths.
 }
 \examples{
 
 
 # Example 1
-###Simulate a geometric Brownian motion (GBM) process:
-## starting price of 20, with a growth of 5\% p.a. and
-## volatility of 20\% p.a.
+## Simulate a geometric Brownian motion (GBM) process:
 simulated_spot_prices <- spot_price_simulate(
  x_0 = log(20),
  parameters = c(mu_rn = (0.05 - (1/2) * 0.2^2), sigma_1 = 0.2),
@@ -83,10 +83,9 @@ simulated_spot_prices <- spot_price_simulate(
  N_simulations = 1e3)
 
 # Example 2
-###Simulate future spot price paths under Risk-Neutrality and under the
-###Schwartz - Smith two factor model:
+## Simulate the Short-Term/Long-Term model:
 
-##Step 1 - Run the Kalman Filter for the Two-Factor Oil Model:
+### Step 1 - Obtain contemporary state variable estimates through the Kalman Filter:
 SS_2F_filtered <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
                                     parameter_names = names(SS_oil$two_factor),
                                     log_futures = log(SS_oil$stitched_futures),
@@ -94,8 +93,7 @@ SS_2F_filtered <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
                                     futures_TTM = SS_oil$stitched_TTM,
                                     verbose = TRUE)
 
-#Step 2 - Simulate spot prices:
-##100 antithetic simulations of one year of monthly observations
+### Step 2 - Use these state variable estimates to simulate futures spot prices:
 simulated_spot_prices <- spot_price_simulate(
  x_0 = SS_2F_filtered$x_t,
  parameters = SS_oil$two_factor,

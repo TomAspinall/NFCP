@@ -2,16 +2,18 @@
 % Please edit documentation in R/option_valuation.R
 \name{American_option_value}
 \alias{American_option_value}
-\title{N-factor model American put option pricing}
+\title{N-factor model American options on futures contracts valuation}
 \usage{
 American_option_value(
   x_0,
   parameters,
-  N_simulations,
+  futures_maturity,
   option_maturity,
-  dt,
   K,
   r,
+  call = FALSE,
+  N_simulations,
+  dt,
   orthogonal = "Power",
   degree = 2,
   verbose = FALSE,
@@ -19,83 +21,86 @@ American_option_value(
 )
 }
 \arguments{
-\item{x_0}{Initial values of the state vector.}
+\item{x_0}{\code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.}
 
-\item{parameters}{Named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{N_simulations}{total number of simulated price paths}
+\item{futures_maturity}{\code{numeric}. Time, in years, when the underlying futures contract matures.}
 
-\item{option_maturity}{Time to expiration of the option (in years)}
+\item{option_maturity}{\code{numeric}. Time, in years,  when the American option expires.}
 
-\item{dt}{discrete time step of simulation}
+\item{K}{\code{numeric}. Strike price of the American Option.}
 
-\item{K}{Strike price of the American put option}
+\item{r}{\code{numeric}. Annualized risk-free interest rate.}
 
-\item{r}{Risk-free interest rate.}
+\item{call}{\code{logical}. Is the American option a call or put option?}
 
-\item{orthogonal}{The orthogonal polynomial used to approximate the continuation value of the option in the LSM simulation method.
-Orthogonal polynomial arguments available are: "Power", "Laguerre", "Jacobi", "Legendre", "Chebyshev", "Hermite". See \code{help(LSM.AmericanOption)}}
+\item{N_simulations}{\code{numeric}. Total number of simulated price paths.}
 
-\item{degree}{The degree of polynomials used in the least squares fit. See \code{help(LSM.AmericanOption)}}
+\item{dt}{\code{numeric}. Discrete time step, in years, of the Monte Carlo simulation.}
 
-\item{verbose}{\code{logical} Should additional information be output?}
+\item{orthogonal}{\code{character}. The orthogonal polynomial used to approximate the continuation value of the option in the LSM simulation method.
+Orthogonal polynomial arguments available are: "Power", "Laguerre", "Jacobi", "Legendre", "Chebyshev", "Hermite".}
 
-\item{debugging}{\code{logical} Should additional simulation information be output?}
+\item{degree}{\code{numeric}. The degree of polynomials used in the least squares fit.}
+
+\item{verbose}{\code{logical}. Should additional option value information be output? see \bold{details}.}
+
+\item{debugging}{\code{logical} Should the simulated state variables and futures prices be output?}
 }
 \value{
-The 'American_option_value' function by default returns a \code{numeric} object corresponding to the calculated value of the American put option.
+The 'American_option_value' function by default returns a \code{numeric} object corresponding to the calculated value of the American option.
 
-When \code{verbose = T}, 6 objects are returned within a \code{list} class object. The objects returned are:
+When \code{verbose = T}, 6 objects related to the American option value are returned within a \code{list} class object. The objects returned are:
 
 \tabular{ll}{
 
 \code{Value} \tab The calculated option value. \cr
 \code{Standard Error} \tab The standard error of the calculated option value. \cr
-\code{Expected Timing} \tab The expected time of early exercise.. \cr
+\code{Expected Timing} \tab The expected time of early exercise. \cr
 \code{Expected Timing SE} \tab The standard error of the expected time of early exercise. \cr
 \code{Exercise Probability} \tab The probability of early exercise of the option being exercised. \cr
-\code{Cumulative Exercise Probability} \tab \code{vector}. The cumulative probability of option exercise at each discrete observation point \cr
+\code{Cumulative Exercise Probability} \tab \code{vector}. The cumulative probability of option exercise at each discrete observation point. \cr
 }
 
-When \code{debugging = T}, an additional 2 objects are returned within the \code{list} class object. These are the results output by both the 'Spot.Price.Simulate' and
-'LSM.AmericanOption' of the 'LSMRealOptions' package respectively. The objects returned are:
+When \code{debugging = T}, an additional 2 simulation objects are returned within the \code{list} class object. These objects can have high dimensions and thus memory usage, so caution should be applied. The objects returned are:
 
 \tabular{ll}{
-\code{State_Variables} \tab A matrix of simulated state variables for each factor is returned when \code{verbose = T}. The number of factors returned corresponds to the number of factors in the specified N-factor model. \cr
-\code{Prices} \tab A matrix of simulated price paths. Each column represents one simulated price path and each row represents one simulated observation. \cr
+\code{Simulated State Variables} \tab An array of simulated state variables. The three dimensions of the array correspond to a discrete time observation, simulated price path, and factor of the N-factor model, respectively. \cr
+\code{Simulated Futures Prices} \tab A matrix of simulated futures contract price paths. Each row represents one simulated discrete time observation and each column represents one simulated price path \cr
 }
 }
 \description{
-Value American put options under the parameters of an N-factor model through the Least-Squares Monte Carlo (LSM) Simulation Method.
-This function is a wrapper to the 'LSM_American_option' function of the 'LSMRealOptions' package.
+Value American options on futures contracts under the parameters of an N-factor model
 }
 \details{
-The 'American_option_value' function is a wrapper to the 'spot_price_simulate' and 'LSM_American_option' of the 'LSMRealOptions' package that
-returns the value of American put options under a given N-factor model.
+The \code{American_option_value} function calculates numerically the value of American options on futures contracts within the N-factor model. An American option on a commodity futures contract gives the holder
+the right, but not the obligation, to buy (call) or sell (put) the underlying asset at any time before option maturity. If the American option is exercised, the option devolves into buying or selling of the underlying
+futures asset at the exercise price.
 
-The least-squares Monte Carlo (LSM) simulation method is an option valuation method first presented by Longstaff and Schwartz (2001) that
-approximates the value of American options.
+The 'American_option_value' function uses Monte Carlo simulation and the Least-Squares Monte Carlo (LSM) simulation approach to numerically calculate the value of American options on futures contracts under the N-factor model. LSM simulation is a method
+that values options with early exercise opportunities, first presented by Longstaff and Schwartz (2001). LSM simulation uses discrete time steps to approximate the value of the American option and thus technically values Bermudan-style options,
+converging to American option values as the size of the time step approaches zero. For more information on LSM simulation, see help('LSM_American_option') of the 'LSMRealOption' package or Longstaff and Schwartz (2001).
 
-Methods to solve for the value of options with early exercise opportunities include partial differential equations, lattice-based methods
-and Monte-Carlo simulation. LSM simulation is the optimal solution method to value American options under an N-factor model due
-to the multiple factors that can make up the spot price process and influence the option value. Whilst lattice and partial differential equation
-approaches suffer from the 'curse of dimensionality', LSM simulation may be readily applied under multi-factor settings.
+For a provided N-factor model,the 'American_option_value' function simulates state variables under the N-factor framework through the 'spot_price_simulate' function, developing expected futures prices from
+these simulated state variables. The function then uses
+the 'LSM_American_option' of the 'LSMRealOption' package to calculate the value of the American option with early exercise opportunities.
 
-Longstaff and Schwartz (2001) state that as the conditional expectation of the continuation value belongs to a Hilbert space,
-it can be represented by a combination of orthogonal basis functions. Increasing the number of stochastic state variables
-therefore increases the number of required basis functions exponentially.
+The number of simulations has a large influence on the standard error and accuracy of calculated option values at the cost of computational expense. Large numbers of simulations are suggested to converge upon appropriate values.
+
+Orthogonal polynomials are used in the LSM simulation method to approximate the value of continuing to hold the American option. In general, increasing the degree of orthogonal polynomials used should increase the accuracy of results, at the cost of increased computational expense.
 }
 \examples{
 
-# Example 1 - An American put option on a stock following 'GBM'
-# growing at the risk-free rate:
+# Example 1 - An American put option on a futures contract following 'GBM'
 American_option_value(x_0 = log(36),
-                     parameters = c(mu_rn = (0.06 - (1/2) * 0.2^2), sigma_1 = 0.2),
+                     parameters = c(mu_rn = 0.06, sigma_1 = 0.2),
                      N_simulations = 1e2,
+                     futures_maturity = 1,
                      option_maturity = 1,
                      dt = 1/50,
                      K = 40,
-                     r = 0.05,
+                     r = 0.06,
                      verbose = FALSE,
                      orthogonal = "Laguerre",
                      degree = 3)
@@ -107,29 +112,31 @@ American_option_value(x_0 = log(36),
 Schwartz_Smith_oil <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
                                         parameter_names = names(SS_oil$two_factor),
                                         log_futures = log(SS_oil$stitched_futures),
-                                        dt = SS.Oil$dt,
+                                        dt = SS_oil$dt,
                                         futures_TTM = SS_oil$stitched_TTM,
                                         verbose = TRUE)
 
 ##Step 2 - Calculate 'put' option price:
 American_option_value(x_0 = Schwartz_Smith_oil$x_t,
                      parameters = SS_oil$two_factor,
-                     N_simulations = 1e2,
+                     futures_maturity = 2,
                      option_maturity = 1,
-                     dt = 1/12,
                      K = 20,
                      r = 0.05,
-                     verbose = FALSE,
+                     call = FALSE,
+                     N_simulations = 1e2,
+                     dt = 1/12,
+                     verbose = TRUE,
                      orthogonal = "Power",
                      degree = 2)
 }
 \references{
-Longstaff, F.A., and E.S. Schwartz. 2001. Valuing American Options by Simulation: A Simple Least-Squares Approach. The Review of Financial Studies. 14:113-147.
+Longstaff, F.A., and E.S. Schwartz, (2001). Valuing American Options by Simulation: A Simple Least-Squares Approach. \emph{The Review of Financial Studies.}, 14:113-147.
 
 Schwartz, E. S., and J. E. Smith, (2000). Short-Term Variations and Long-Term Dynamics in Commodity Prices. \emph{Manage. Sci.}, 46, 893-911.
 
 Cortazar, G., and L. Naranjo, (2006). An N-factor Gaussian model of oil futures prices. \emph{Journal of Futures Markets: Futures, Options, and Other Derivative Products}, 26(3), 243-268.
 
 Aspinall, T., A. Gepp, G. Harris, S. Kelly, C. Southam, and B. Vanstone, (2021). LSMRealOptions: Value
-American and Real Options Through LSM Simulation. R package version 0.1.0.
+American and Real Options Through LSM Simulation. R package version 0.1.1.
 }

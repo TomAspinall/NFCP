@@ -1,4 +1,4 @@
-#' Specify parameters of N-factor model
+#' Specify the constant parameters of an N-factor model
 #'
 #' @description
 #'\loadmathjax
@@ -10,29 +10,30 @@
 #' @param GBM \code{logical}. If \code{GBM = T}, factor 1 of the model is assumed to follow a Brownian Motion, inducing a unit-root in the spot price process.
 #' @param initial_states \code{logical}. If \code{initial_states = T}, the initial state vector is specified as unknown parameters of the commodity pricing model.
 #' @param N_ME \code{numeric}. The number of independent measuring errors of observable futures contracts to consider in the Kalman filter.
-#' @param verbose \code{logical}. If \code{verbose = T}, the specified N-factor model is printed when the function is called.
+#' @param N_season \code{numeric}. The number of deterministic, cyclical seasonal factors to include in the spot price process.
+#' @param verbose \code{logical}. If \code{verbose = T}, the stochastic differential equation of the spot price process is printed when the function is called.
 #'
 #'
 #'@details
 #'
 #'\bold{The N-factor model}
-#'The N-factor model was first presented in the work of Cortazar and Naranjo (2006, equations 1-3). The N-factor framework
-#'describes the spot price process of a commodity as the correlated sum of \mjeqn{N}{N} state variables \mjeqn{x_t}{x[t]}.
+#'The N-factor framework was first presented in the work of Cortazar and Naranjo (2006, equations 1-3).
+#'It is a risk-premium class of commodity pricing model, in which futures prices are given by discounted expected future spot prices,
+#'where these spot prices are discounted at a given level of risk-premium, known as the cost-of-carry.
+#'
+#'The N-factor framework describes the spot price process of a commodity as the correlated sum of \mjeqn{N}{N} state variables \mjeqn{x_t}{x[t]}. The 'NFCP' package also allows for a deterministic,
+#'cyclical seasonal function \mjeqn{season(t)}{season(t)} to be considered.
 #'
 #'When \code{GBM = TRUE}:
-#'\mjdeqn{log(S_{t}) = \sum_{i=1}^N x_{i,t}}{log(S[t]) = sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 #'When \code{GBM = FALSE}:
-#'\mjdeqn{log(S_{t}) = E + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 #'
-#'Additional factors within the spot-price process are designed to result in additional flexibility, and possibly fit to the observable term structure, in
-#' the spot price process of a commodity. The fit of different N-factor models, represented by the log-likelihood can be directly compared with statistical
-#' testing possible through a chi-squared test.
+#'Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 #'
-#'Flexibility in the spot price under the N-factor framework allows the first factor to follow a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root.
-#'In general, an N-factor model where \code{GBM = T}
-#'allows for non-reversible behaviour within the price of a commodity, whilst \code{GBM = F} assumes that there is a long-run equilibrium that
-#'the commodity price will revert to in the long-term.
+#'When \code{GBM = TRUE}, the first factor corresponds to the spot price, and additional N-1 factors model the cost-of-carry.
 #'
+#'When \code{GBM = FALSE}, the commodity model assumes that there is a long-term equilibrium the commodity price will tend towards over time, with model volatility a decreasing function of time. This is not the standard approach made in the commodity pricing literature (Cortazar and Naranjo, 2006).
 #'
 #'State variables are thus assumed to follow the following processes:
 #'
@@ -47,6 +48,12 @@
 #'
 #'where:
 #'\mjdeqn{E(w_{i})E(w_{j}) = \rho_{i,j}}{E(w[i])E(w[j])}
+#'
+#'Additionally, the deterministic seasonal function (if specified) is given by:
+#'
+#'\mjdeqn{season(t) = \sum_{i=1} ( season_{i,1} cos(2i\pi) + season_{i,2} sin(2i\pi)}{season(t) = sum_{i=1} ( season_{i,1} cos(2.i.pi) + season_{i,2} sin(2.i.pi)}
+#'
+#'The addition of deterministic, cyclical seasonality as a function of trigonometric variables was first suggested by Hannan, Terrell, and Tuckwell (1970) and first applied to model commodities by Sørensen (2002).
 #'
 #'The following constant parameters are defined as:
 #'
@@ -64,10 +71,14 @@
 #'
 #'\code{var} \mjeqn{\rho_{i,j} \in [-1,1]}{rho[i,j] in [-1,1]}: Instantaneous correlation between state variables \mjeqn{i}{i} and \mjeqn{j}{j}.
 #'
+#'Including additional factors within the spot-price process allow for additional flexibility (and possibly fit) to the term structure of a commodity.
+#'The N-factor model nests simpler models within its framework, allowing for the fit of different N-factor models (applied to the same term structure data),
+#'represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test.
+#'
 #'\bold{Disturbances - Measurement Error}:
 #'
 #'The Kalman filtering algorithm assumes a given measure of measurement error or disturbance in the measurement equation (ie. matrix \mjeqn{H}{H}). Measurement errors can be interpreted as error in the
-#'model's fit to observed prices, or as errors in the reporting of prices (Schwartz and Smith, 2000). These disturbances are typically assumed independent.
+#'model's fit to observed prices, or as errors in the reporting of prices (Schwartz and Smith, 2000). These disturbances are typically assumed independent by the commodity pricing literature.
 #'
 #'\code{var} \mjeqn{ME_i}{ME[i]} measurement error of contract \mjeqn{i}{i}.
 #'
@@ -89,16 +100,15 @@
 #'
 #'Case 3 thus serves to ease the restriction of case 1, and allow the user to make the modeling of measurement error as simple or complex as desired for a given set of maturities.
 #'
-#'
-#'\bold{Diffuse Assumption}:
-#'If \code{initial_states = F}, a 'diffuse' assumption is made within Kalman filtering and parameter estimation functions (See \code{NFCP.MLE} or \code{NFCP.Kalman.filter} for more information)
-#'
-#'
 #'@return A vector of parameter names for a specified N-factor spot price process. This vector is ideal for application within many other functions within the \code{NFCP} package
 #'
 #'@references
 #'
+#'Hannan, E. J., et al. (1970). "The seasonal adjustment of economic time series." \emph{International economic review} 11(1): 24-52.
+#'
 #'Schwartz, E. S., and J. E. Smith, (2000). Short-Term Variations and Long-Term Dynamics in Commodity Prices. \emph{Manage. Sci.}, 46, 893-911.
+#'
+#'Sørensen, C. (2002). "Modeling seasonality in agricultural commodity futures." \emph{Journal of Futures Markets: Futures, Options, and Other Derivative Products} 22(5): 393-426.
 #'
 #'Cortazar, G., and L. Naranjo, (2006). An N-factor Gaussian model of oil futures prices. \emph{Journal of Futures Markets: Futures, Options, and Other Derivative Products}, 26(3), 243-268.
 #'
@@ -111,7 +121,7 @@
 #'                                         N_ME = 5)
 #'print(two_factor_parameters)
 #'@export
-NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, verbose = TRUE){
+NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, N_season = 0, verbose = TRUE){
 
   bool <- !c(is.numeric(N_factors), is.numeric(N_ME))
   if(any(bool)) stop(paste("parameter", paste(c("N_factors", "N_ME")[bool], collapse = ", "), "must be class 'numeric'!"))
@@ -119,18 +129,18 @@ NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, verbose = TRUE
   if(any(bool)) stop(paste("parameter", paste(c("GBM", "initial_states", "verbose")[bool], collapse = ", "), "must be class 'logical'!"))
 
   if(N_factors < 1) stop("N_factors must be >= 1!")
+  if(N_season < 0) stop("The number of seasonal factors must be >=0!")
 
   ## Hard set catch error:
   if(N_factors > 10) stop("N_factors probably shouldn't be > 10!")
 
   ##To start, specify the GBM growth factor:
-  input_names <- "mu"
+  input_names <- c("mu", sapply(c("lambda", "kappa", "sigma"), FUN = function(X) paste(X, 1:N_factors, sep ="_")))
 
-  ##Classic spaghetti code - Append the mean-reverting (kappa), risk-premiums (lambda) and volatilities of each factor:
-  variables <- c("lambda", "kappa", "sigma")
-  input_names <- c(input_names, sapply(variables, FUN = function(X) paste(X, 1:N_factors, sep ="_")))
   ##The correlations:
   for(i in 1:N_factors) for(j in i:N_factors) if(i != j)  input_names <- c(input_names, paste("rho", i, j, sep = "_"))
+
+  if(N_season > 0) for(i in 1:N_season) input_names <- c(input_names, paste("season", i, 1:2, sep = "_"))
 
   ##Measurement Error (white noise of contracts):
   if(N_ME > 0) input_names <- c(input_names, paste0("ME_", 1:N_ME))
@@ -151,7 +161,11 @@ NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, verbose = TRUE
   cat("\n----------------------------------------------------------------\n")
   cat(paste0(N_factors, ifelse(N_factors>1, " Factors", " Factor"), " model:", ifelse(GBM, " first factor is a GBM", " first factor is an MR"),  "\n\n"))
   cat("Risk Neutral SDE: \n\n")
-  if(GBM) cat("log(S_t) = sum(x_t)\n\n") else cat("log(S_t) = E + sum(x_t)\n\n")
+
+  statement <- ifelse(GBM, "log(s_t) = ", "log(s_t) = E + ")
+  if(N_season > 0) statement <- paste0(statement, "season_t")
+  cat(paste0(statement, " + sum(x_t)\n\n"))
+
   cat("Where: \n")
   if(GBM){
     cat("d x1_t    = mu_rn * dt  + sigma_1 * dW_1\n")
@@ -165,7 +179,16 @@ NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, verbose = TRUE
     cat("\n And: \n\n")
     for(i in 1:N_factors) for(j in i:N_factors) if(i!=j) cat(paste0("E(dW_",i," * dW_",j,") = rho_",i,"_",j," * dt\n"))
   }
+
+  if(N_season > 0){
+    cat("\nAdditionally, there is a deterministic seasonal component: \n\n")
+
+    season_print <- "season_1_1 * cos(2 * PI * t) + season_1_2 * sin(2 * PI * t)"
+    if(N_season > 1) for(i in 2:N_season) season_print <- paste0(season_print, " + season_", i, "_1 * cos(",2*i, " * PI * t) + season_", i, "_2 * sin(", 2*i, "* PI * t)" )
+    cat(paste0("SEASON_t = ", season_print, "\n"))
   }
+  }
+
 
   return(c(input_names, use.names = FALSE))
 }
@@ -348,8 +371,6 @@ stitch_contracts <- function(futures, futures_TTM = NULL, maturity_matrix = NULL
   }
 }
 
-#Applied within various functions throughout the rest of the package:
-
 #Function for A(T):
 #'Calculate \eqn{A(T)}
 #'@description
@@ -472,6 +493,7 @@ cov_func <- function(parameters, dt){
 #'@param mu A vector of length two specifying the lower and upper bounds for the 'mu' parameter
 #'@param mu_rn A vector of length two specifying the lower and upper bounds for the 'mu_rn' parameter
 #'@param rho A vector of length two specifying the lower and upper bounds for the 'rho' parameter
+#'@param season A vector of length two specifying the lower and upper bounds for the 'season' parameter
 #'@param ME A vector of length two specifying the lower and upper bounds for the 'ME' (i.e., measurement error) parameter
 #'@param x_0 A vector of length two specifying the lower and upper bounds for the 'x_0' parameter
 #'@param E A vector of length two specifying the lower and upper bounds for the 'E' parameter
@@ -513,6 +535,7 @@ NFCP_domains <- function(parameters,
                         mu = NULL,
                         mu_rn = NULL,
                         rho = NULL,
+                        season = NULL,
                         ME = NULL,
                         x_0 = NULL,
                         E = NULL){
@@ -521,11 +544,12 @@ NFCP_domains <- function(parameters,
   if(is.null(lambda))   lambda   <- c(-10, 10)
   if(is.null(sigma))    sigma    <- c(0, 10)
   if(is.null(mu))       mu       <- c(-10, 10)
-  if(is.null(mu_rn))  mu_rn  <- c(-10, 10)
+  if(is.null(mu_rn))    mu_rn    <- c(-10, 10)
   if(is.null(rho))      rho      <- c(-1, 1)
-  if(is.null(ME)) ME <- c(1e-10, 1)
+  if(is.null(ME))       ME       <- c(1e-10, 1)
   if(is.null(x_0))      x_0      <- c(-10, 10)
   if(is.null(E))        E        <- c(-10, 10)
+  if(is.null(season))       season       <- c(-1, 1)
 
 
 
@@ -556,6 +580,9 @@ NFCP_domains <- function(parameters,
   lower_bounds[grepl("sigma", parameters)] <- sigma[1]
   upper_bounds[grepl("sigma", parameters)] <- sigma[2]
 
+  ## Seasonality Factors:
+  lower_bounds[grepl("season", parameters)] <- season[1]
+  upper_bounds[grepl("season", parameters)] <- season[2]
 
   ###Setting White noise bounds that are too low will result in a singular matrix (1e-5^2 == 1e-10):
 

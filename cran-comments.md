@@ -15,4 +15,4 @@
 
 * 'LSMRealOptions' is a downstream dependency. I have run R CMD check, which passed with 0 errors, warnings and notes.
 
-* This is a major update of an existing release (0.2.1 -> 1.0.0)
+* This is a minor update of an existing release (1.0.0 -> 1.0.1)

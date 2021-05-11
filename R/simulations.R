@@ -1,20 +1,22 @@
-#' Forecast the spot prices of an N-factor model
-#' @description Analytically forecast expected spot prices following the "true" process of a given n-factor stochastic model
+#' Forecast spot prices of an N-factor model
 #'
-#'@param x_0 Initial values of the state vector.
-#'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
-#'@param t a vector of discrete time points to forecast
-#'@param percentiles Optional. A vector of percentiles to include probabilistic forecasting intervals.
+#'@description
+#'\loadmathjax
+#'Analytically forecast expected spot prices following the "true" process of a given n-factor stochastic model
+#'
+#'@param x_0 \code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.
+#'@param parameters \code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
+#'@param t \code{vector}. Discrete time points, in years, to forecast spot prices
+#'@param percentiles \code{vector}. Optional. Probabilistic forecasting percentile intervals.
 #'
 #'@details
 #'Future expected spot prices under the N-factor model can be forecasted through the analytic expression of expected future prices under the "true" N-factor process.
 #'
 #'Given that the log of the spot price is equal to the sum of the state variables (equation 1), the spot price is log-normally distributed with the expected prices given by:
 #'
-#'\loadmathjax
 #'\mjdeqn{E[S_t] = exp(E[ln(S_t)] + \frac{1}{2}Var[ln(S_t)])}{exp(E[ln(S[t])] + 1/2 Var[ln(S[t])])}
 #'Where:
-#'\mjdeqn{E[ln(S_t)] = \sum_{i=1}^Ne^{-(\kappa_it)}x_i(0) + \mu t}{E[ln(S[t])] = sum_{i=1}^N (e^(-(kappa[i] t)) x[i,0] + mu * t)}
+#'\mjdeqn{E[ln(S_t)] = season(t) + \sum_{i=1}^Ne^{-(\kappa_it)}x_i(0) + \mu t}{E[ln(S[t])] = season(t) + sum_{i=1}^N (e^(-(kappa[i] t)) x[i,0] + mu * t)}
 #'
 #'Where \mjeqn{\kappa_i = 0}{kappa[i] = 0} when \code{GBM=T} and \mjeqn{\mu = 0}{mu = 0} when \code{GBM = F}
 #'
@@ -23,12 +25,14 @@
 #'
 #'and thus:
 #'
-#'\mjdeqn{E[S_t] = exp(\sum_{i=1}^N e^{-\kappa_it}x_i(0) + (\mu + \frac{1}{2}\sigma_1^2)t + \frac{1}{2}\sum_{i.j\neq1} \sigma_i\sigma_j\rho_{i,j}\frac{1-e^{-(\kappa_i+\kappa_j)t}}{\kappa_i+\kappa_j})}{
-#'E[S[t]] = exp( sum_{i=1}^N e^(-kappa[i] t) x[i,0] + (mu + 1/2 sigma[1]^2)t + 1/2 (sum_{i.j != 1}( sigma[i] sigma[j] rho[i,j] (1 - e^(-(kappa[i] + kappa[j])t)) / (kappa[i] + kappa[j]))) )}
+#'\mjdeqn{E[S_t] = exp(season(t) + \sum_{i=1}^N e^{-\kappa_it}x_i(0) + (\mu + \frac{1}{2}\sigma_1^2)t + \frac{1}{2}\sum_{i.j\neq1} \sigma_i\sigma_j\rho_{i,j}\frac{1-e^{-(\kappa_i+\kappa_j)t}}{\kappa_i+\kappa_j})}{
+#'E[S[t]] = exp(season(t) + sum_{i=1}^N e^(-kappa[i] t) x[i,0] + (mu + 1/2 sigma[1]^2)t + 1/2 (sum_{i.j != 1}( sigma[i] sigma[j] rho[i,j] (1 - e^(-(kappa[i] + kappa[j])t)) / (kappa[i] + kappa[j]))) )}
 #'
 #'Under the assumption that the first factor follows a Brownian Motion, in the long-run expected spot prices grow over time at a constant rate of \mjeqn{\mu + \frac{1}{2}\sigma_1^2}{mu + 1/2 sigma[1]} as the \mjeqn{e^{-\kappa_it}}{e^(-kappa[i] * t)} and \mjeqn{e^{-(\kappa_i + \kappa_j)t}}{e^(-(kappa[i] + kappa[j]))} terms approach zero.
 #'
-#'An important consideration when forecasting spot prices using parameters estimated through maximum likelihood estimation is that the parameter estimation process takes the assumption of risk-neutrality and thus the true process growth rate \mjeqn{\mu}{mu} is not estimated with a high level of precision. This can be shown from the higher standard error for \mjeqn{\mu}{mu} than other estimated parameters, such as the risk-neutral growth rate \mjeqn{\mu^*}{mu^*}. See Schwartz and Smith (2000) for more details.
+#'An important consideration when forecasting spot prices using parameters estimated through maximum likelihood estimation is that the parameter estimation process takes the assumption of risk-neutrality and thus the
+#'true process growth rate \mjeqn{\mu}{mu} is not estimated with a high level of precision. This can be shown from the higher standard error for \mjeqn{\mu}{mu} than other estimated parameters,
+#'such as the risk-neutral growth rate \mjeqn{\mu^*}{mu^*}. See Schwartz and Smith (2000) for more details.
 #'
 #'@return \code{spot_price_forecast} returns a vector of expected future spot prices under a given N-factor model at specified discrete future time points. When \code{percentiles} are specified, the function returns a matrix with the corresponding confidence bands in each column of the matrix.
 #'@references
@@ -61,12 +65,6 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
 
   if(is.null(names(parameters))) stop("parameters must be a named vector")
 
-  if("mu_star" %in% names(parameters)){
-    warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
-    parameters["mu_rn"] <- parameters["mu_star"]
-    parameters <- parameters[!names(parameters) %in% "mu_star"]
-  }
-
   N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
 
   GBM <- "mu" %in% names(parameters)
@@ -78,10 +76,16 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
     parameters["mu"] <- 0
   }
 
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", names(parameters)))/2
+  ## Incorporate Seasonality (if there is any):
+  seasonality <- 0
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * t) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * t)
+
   ###Expected Spot Price Forecasting:
   ##Save the expected future spot prices:
 
-  spot_price_forecast <- parameters["E"] + parameters["mu"] * t
+  spot_price_forecast <- seasonality + parameters["E"] + parameters["mu"] * t
   for(i in 1:N_factors) spot_price_forecast <- spot_price_forecast + x_0[i] * exp(-parameters[paste0("kappa_",i)] * (t))
 
   ###Instantaneous Volatility:
@@ -113,13 +117,12 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
 
 #'Forecast the futures prices of an N-factor model
 #'@description Analytically forecast future expected Futures prices under the risk-neutral version of a specified N-factor model.
-#'@param x_0 Initial values of the state vector.
-#'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
-#'@param t a numeric specifying the time point at which to forecast futures prices
-#'@param futures_TTM a vector specifying the time to maturity of futures contracts to value.
-#'@param percentiles Optional. A vector of percentiles to include probabilistic forecasting intervals.
 #'
-#'
+#'@param x_0 \code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.
+#'@param parameters \code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
+#'@param t \code{numeric}. The time point, in years, at which to forecast futures prices.
+#'@param futures_TTM \code{vector}. the time-to-maturity, in years, of futures contracts to forecast.
+#'@param percentiles \code{vector}. Optional. Probabilistic forecasting percentile intervals.
 #'
 #'@details
 #'\loadmathjax
@@ -127,7 +130,7 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
 #'denote the market price of a futures contract at time \mjeqn{t}{t} with time \mjeqn{T}{T} until maturity. let * denote the risk-neutral expectation and variance of futures prices.
 #'The following equations assume that the first factor follows a Brownian Motion.
 #'
-#'\mjdeqn{E^*[ln(F_{T,t})] =\sum_{i=1}^Ne^{-\kappa_iT}x_{i}(0) + \mu^*t +  A(T-t)}{E^*[ln(F[T,t])] = sum_{i=1}^N (e^(-kappa[i] T) x[i,0] + mu * t + A(T-t))}
+#'\mjdeqn{E^*[ln(F_{T,t})] = season(T) + \sum_{i=1}^Ne^{-\kappa_iT}x_{i}(0) + \mu^*t +  A(T-t)}{E^*[ln(F[T,t])] = season(T) + sum_{i=1}^N (e^(-kappa[i] T) x[i,0] + mu * t + A(T-t))}
 #'
 #'Where:
 #'\mjdeqn{A(T-t) = \mu^*(T-t)-\sum_{i=1}^N - \frac{1-e^{-\kappa_i (T-t)}\lambda_i}{\kappa_i}+\frac{1}{2}(\sigma_1^2(T-t) + \sum_{i.j\neq 1} \sigma_i \sigma_j \rho_{i,j} \frac{1-e^{-(\kappa_i+\kappa_j)(T-t)}}{\kappa_i+\kappa_j})}{
@@ -172,12 +175,6 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 
   if(is.null(names(parameters))) stop("parameters must be a named vector")
 
-  if("mu_star" %in% names(parameters)){
-    warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
-    parameters["mu_rn"] <- parameters["mu_star"]
-    parameters <- parameters[!names(parameters) %in% "mu_star"]
-  }
-
   N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
 
   GBM <- "mu_rn" %in% names(parameters)
@@ -189,6 +186,12 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
     parameters["mu_rn"] <- 0
   }
 
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", names(parameters)))/2
+  ## Incorporate Seasonality (if there is any):
+  seasonality <- 0
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+
   ###Expected Futures Price Forecasting:
   ##Save the expected Futures prices:
 
@@ -198,7 +201,7 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
   for(i in 1:N_factors) futures_price_forecast <- futures_price_forecast + x_0[i] * exp(-parameters[paste0("kappa_",i)] * (futures_TTM))
 
   ###Take risk-premiums and volatility into account:
-  futures_price_forecast <- futures_price_forecast + A_T(parameters, futures_TTM-t)
+  futures_price_forecast <- futures_price_forecast + seasonality + A_T(parameters, futures_TTM-t)
 
   if(!is.null(percentiles)){
 
@@ -230,21 +233,21 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 #'
 #'@description Simulate risk-neutral price paths of an an N-factor commodity pricing model through Monte Carlo Simulation.
 #'
-#'@param x_0 Initial values of the state vector.
-#'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
-#'@param t the number of years to simulate
-#'@param dt discrete time step of simulation
-#'@param N_simulations total number of simulations
+#'@param x_0 \code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.
+#'@param parameters \code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
+#'@param t \code{numeric}. Number of years to simulate.
+#'@param dt \code{numeric}. Discrete time step, in years, of the Monte Carlo simulation.
+#'@param N_simulations \code{numeric}. The total number of Monte Carlo simulations.
 #'@param antithetic \code{logical}. Should antithetic price paths be simulated?
-#'@param verbose \code{logical}. Should simulated state variables be output? see \bold{returns}
+#'@param verbose \code{logical}. Should simulated state variables be output?
 #'
 #'@details
 #'\loadmathjax
-#'The \code{spot_price_simulate} function is able to quickly simulate a large number of risk-neutral price paths of a commodity following the N-factor model.
+#'The \code{spot_price_simulate} function is able to quickly and efficiently simulate a large number of state variables and risk-neutral price paths of a commodity following the N-factor model.
 #'Simulating risk-neutral price paths of a commodity under an N-factor model through Monte Carlo simulations allows for the
-#'valuation of commodity related investments and derivatives, such as American Options and Real Options through dynamic programming methods.
+#'valuation of commodity related investments and derivatives, such as American options and real Options through dynamic programming methods.
 #'The \code{spot_price_simulate} function quickly and efficiently simulates an N-factor model over a specified number of years, simulating antithetic price paths as a simple variance reduction technique.
-#'The \code{spot_price_simulate} function uses the \code{mvrnorm} function from the \code{MASS} package to draw from a multivariate normal distribution for the simulation shocks.
+#'The \code{spot_price_simulate} function uses the \code{mvrnorm} function from the \code{MASS} package to draw from a multivariate normal distribution for the correlated simulation shocks of state variables.
 #'
 #'The N-factor model stochastic differential equation is given by:
 #'
@@ -262,6 +265,8 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 #'
 #'Where a numerical solution is obtained by numerically discretising and approximating the integral term using the Euler-Maruyama integration scheme:
 #'\mjdeqn{\int_0^t\sigma_ie^{\kappa_is}dW_s = \sum_{j=0}^t \sigma_ie^{\kappa_ij}dW_s}{int_0^t ( sigma[i] e^(kappa[i] * s) dw[s])}
+#'
+#'Finally, deterministic seasonality is considered within the spot prices of simulated price paths.
 #'
 #'@return
 #'\code{spot_price_simulate} returns a list when \code{verbose = T} and a matrix of simulated price paths when \code{verbose = F}. The returned objects in the list are:
@@ -284,9 +289,7 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 #'
 #'
 #'# Example 1
-#'###Simulate a geometric Brownian motion (GBM) process:
-#'## starting price of 20, with a growth of 5% p.a. and
-#'## volatility of 20% p.a.
+#'## Simulate a geometric Brownian motion (GBM) process:
 #'simulated_spot_prices <- spot_price_simulate(
 #'  x_0 = log(20),
 #'  parameters = c(mu_rn = (0.05 - (1/2) * 0.2^2), sigma_1 = 0.2),
@@ -295,10 +298,9 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 #'  N_simulations = 1e3)
 #'
 #'# Example 2
-#'###Simulate future spot price paths under Risk-Neutrality and under the
-#'###Schwartz - Smith two factor model:
+#'## Simulate the Short-Term/Long-Term model:
 #'
-#'##Step 1 - Run the Kalman Filter for the Two-Factor Oil Model:
+#'### Step 1 - Obtain contemporary state variable estimates through the Kalman Filter:
 #'SS_2F_filtered <- NFCP_Kalman_filter(parameter_values = SS_oil$two_factor,
 #'                                     parameter_names = names(SS_oil$two_factor),
 #'                                     log_futures = log(SS_oil$stitched_futures),
@@ -306,8 +308,7 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
 #'                                     futures_TTM = SS_oil$stitched_TTM,
 #'                                     verbose = TRUE)
 #'
-#'#Step 2 - Simulate spot prices:
-#'##100 antithetic simulations of one year of monthly observations
+#'### Step 2 - Use these state variable estimates to simulate futures spot prices:
 #'simulated_spot_prices <- spot_price_simulate(
 #'  x_0 = SS_2F_filtered$x_t,
 #'  parameters = SS_oil$two_factor,
@@ -322,13 +323,6 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
   if(length(t) > 1) stop("'t' must be length 1!")
   if(length(dt) > 1) stop("'dt' must be length 1!")
   if(length(N_simulations) > 1) stop("'N_simulations' must be length 1!")
-
-
-  if("mu_star" %in% names(parameters)){
-    warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
-    parameters["mu_rn"] <- parameters["mu_star"]
-    parameters <- parameters[!names(parameters) %in% "mu_star"]
-  }
 
   N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters) &
                            sapply(parameters[paste0("sigma_",1:length(parameters))], FUN = is.numeric) &
@@ -353,10 +347,17 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
   #Correlated Brownian Process (ie. standard normal):
   shocks <- MASS::mvrnorm(n = (nsteps) * nloops, mu = rep(0, N_factors), Sigma = covariance) * sqrt(dt)
 
+  # Deterministic seasonality:
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", names(parameters)))/2
+  ## Incorporate Seasonality (if there is any):
+  seasonality <- matrix(0, nrow = nsteps+1)
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * time_periods) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * time_periods)
+
   ##Instantiate save state matrix of simulations:
   state_matrix <- array(dim = c(nsteps+1, N_sim, N_factors))
 
-  prices <- matrix(0, nrow = nsteps+1, ncol = N_sim)
+  prices <- matrix(seasonality, nrow = nsteps+1, ncol = N_sim)
   if(verbose) output <- list()
   X <- matrix(0, nrow = nsteps+1, ncol = N_sim)
   ##Simulate the Factors:
@@ -372,25 +373,6 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
       MR_sigma  <- parameters[paste0("sigma_", i)]
       MR_kappa  <- parameters[paste0("kappa_", i)]
       MR_lambda <- parameters[paste0("lambda_", i)]
-
-      ## Method One - Not working at the moment:
-
-      # mu <- - MR_lambda / MR_kappa
-      # chi_x <- exp(- MR_kappa * time_periods[-1])
-      # ##Drift:
-      # Drift <- x_0.i * chi_x + mu * (1 - chi_x)
-      # #Shock:
-      # ###The MR Shock is used in accordance to a cum sum:
-      # ##This is the interior of the integral / summation:
-      # shock_val <-  shocks[,i] * exp(MR_kappa * time_periods[-1])
-      #
-      # ##The cumsum is the integral / summation, the second multiplication is the shock part before it.
-      # MR_shock <- MR_sigma * apply(matrix(shock_val, nrow = nsteps), MARGIN = 2, cumsum) * chi_x
-      #
-      # #State Matrix:
-      # state_matrix[2:(nsteps+1),seq(1, N_sim, ifelse(antithetic,2,1)),i] <- Drift + MR_shock
-      # #Antithetic Values:
-      # if(antithetic) state_matrix[2:(nsteps+1),seq(2, N_sim, 2), i] <- Drift - MR_shock
 
       # Method Two:
       mu <- - MR_lambda / MR_kappa
@@ -412,7 +394,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 
       GBM_sigma   <- parameters[paste0("sigma_", i)]
       GBM_lambda  <- parameters[paste0("lambda_", i)]
-      GBM_mu_rn <- parameters[paste0("mu_rn")]
+      GBM_mu_rn   <- parameters[paste0("mu_rn")]
 
       ##Drift:
       drift <- GBM_mu_rn * dt
@@ -438,21 +420,22 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 
   }
 
-
 #'Simulate futures prices of an N-factor model through Monte Carlo simulation
 #'@description Simulate Futures price data with dynamics that follow the parameters of an N-factor model through Monte Carlo simulation.
 #'
-#'@param x_0 Initial values of the state vector.
-#'@param parameters A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
-#'@param dt discrete time step of simulation
-#'@param N_obs The number of observations to simulate
-#'@param futures_TTM A vector or matrix of the time to maturity of futures contracts to simulate. See \bold{details}
-#'@param ME_TTM vector of maturity groupings to consider for simulated futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameter values.
-#'@param verbose \code{logical}. Should the simulated state variables and associated prices be output?
+#'@param x_0 \code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.
+#'@param parameters \code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.
+#'@param dt \code{numeric}. Discrete time step, in years, of the Monte Carlo simulation.
+#'@param N_obs \code{numeric}. Number of discrete observations to simulate.
+#'@param futures_TTM \code{vector} or \code{matrix}.  The time-to-maturity of observed futures contracts, in years, at a given observation date. This time-to-maturity can either be constant (ie. class 'vector') or variable (ie. class 'matrix') across observations.
+#'The number of rows of object 'futures_TTM' must be either 1 or equal to argument 'N_obs'. NA values are allowed.
+#'@param ME_TTM \code{vector}. the time-to-maturity groupings to consider for observed futures prices. The length of \code{ME_TTM} must be equal to the number of 'ME' parameters specified in object 'parameter_names'. The maximum of 'ME_TTM' must be greater than the maximum value of 'futures_TTM'.
+#'When the number of 'ME' parameter values is equal to one or the number of columns of object 'log_futures', this argument is ignored.
+#'@param verbose \code{logical}. Should simulated state variables be output?
 #'
 #'@details
 #'\loadmathjax
-#'The \code{futures_price_simulate} function simulates futures price data using the Kalman Filter algorithm, drawing from a normal
+#'The \code{futures_price_simulate} function simulates futures price data using the Kalman filter algorithm, drawing from a normal
 #'distribution for the shocks in the transition and measurement equations at each discrete time step. At each discrete time point,
 #'an observation of the state vector is generated through the transition equation, drawing from a normal distribution with a covariance equal to \mjeqn{Q_t}{Q[t]}.
 #'Following this, simulated futures prices are generated through the measurement equation, drawing from a normal distribution with covariance matrix equal to \mjeqn{H}{H}.
@@ -481,8 +464,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 #'@examples
 #'
 #'
-#'##Example 1 - Simulate Crude Oil Stitched futures prices
-#'##under a Two-Factor model, assuming a constant time to maturity:
+#'# Example 1 - Simulate Crude Oil with constant time-to-maturity:
 #'
 #'simulated_futures <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
 #'                                            parameters = SS_oil$two_factor,
@@ -490,8 +472,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 #'                                            N_obs = nrow(SS_oil$stitched_futures),
 #'                                            futures_TTM = SS_oil$stitched_TTM)
 #'
-#'##Example 2 - Simulate Crude Oil Contract Prices under a Two-Factor model,
-#'##using a rolling-window of measurement errors:
+#'##Simulate Crude Oil Contracts with a rolling-window of measurement error:
 #'
 #'simulated_futures_prices <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
 #'                                                   parameters = SS_oil$two_factor,
@@ -503,13 +484,6 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
 futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_TTM = NULL, verbose = TRUE){
 
   if(is.null(names(parameters))) stop("parameters must be a named vector. NFCP_parameters function is suggested")
-
-  ## Temporary
-  if("mu_star" %in% names(parameters)){
-    warning("'mu_star' is deprecated. please rename this parameter to 'mu_rn'")
-    parameters["mu_rn"] <- parameters["mu_star"]
-    parameters <- parameters[!names(parameters) %in% "mu_star"]
-  }
 
   ##If it's a constant futures_TTM, develop the maturity matrix:
 
@@ -523,6 +497,9 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     if(dim(futures_TTM)[2]!=N_obs) stop("Dimension of 'futures_TTM' does not match number of observations")
     N_contracts <- nrow(futures_TTM)
   }
+
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", names(parameters)))/2
 
     GBM <- any(c("mu", "mu_rn") %in% names(parameters))
 
@@ -572,8 +549,12 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     X <- matrix(0, nrow = N_obs, ncol = N_factors)
     Y <- matrix(0, nrow = N_obs, ncol = N_contracts)
 
+    ## Incorporate Seasonality (if there is any):
+    seasonality <- 0
+    if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+
     ## Place data into required format:
-    dtT <- matrix(A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,1,N_obs))
+    dtT <- matrix(seasonality + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,1,N_obs))
 
     Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(Homogeneous_TTM,1, N_obs)))
     for(i in 1:N_factors){
@@ -634,4 +615,4 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
       return(Y_output)
     }
 
-  F}
+  }

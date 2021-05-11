@@ -2,23 +2,24 @@
 % Please edit documentation in R/simulations.R
 \name{spot_price_forecast}
 \alias{spot_price_forecast}
-\title{Forecast the spot prices of an N-factor model}
+\title{Forecast spot prices of an N-factor model}
 \usage{
 spot_price_forecast(x_0, parameters, t, percentiles = NULL)
 }
 \arguments{
-\item{x_0}{Initial values of the state vector.}
+\item{x_0}{\code{vector}. Initial values of the state variables, where the length must correspond to the number of factors specified in the parameters.}
 
-\item{parameters}{A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
+\item{parameters}{\code{vector}. A named vector of parameter values of a specified N-factor model. Function \code{NFCP_parameters} is recommended.}
 
-\item{t}{a vector of discrete time points to forecast}
+\item{t}{\code{vector}. Discrete time points, in years, to forecast spot prices}
 
-\item{percentiles}{Optional. A vector of percentiles to include probabilistic forecasting intervals.}
+\item{percentiles}{\code{vector}. Optional. Probabilistic forecasting percentile intervals.}
 }
 \value{
 \code{spot_price_forecast} returns a vector of expected future spot prices under a given N-factor model at specified discrete future time points. When \code{percentiles} are specified, the function returns a matrix with the corresponding confidence bands in each column of the matrix.
 }
 \description{
+\loadmathjax
 Analytically forecast expected spot prices following the "true" process of a given n-factor stochastic model
 }
 \details{
@@ -26,10 +27,9 @@ Future expected spot prices under the N-factor model can be forecasted through t
 
 Given that the log of the spot price is equal to the sum of the state variables (equation 1), the spot price is log-normally distributed with the expected prices given by:
 
-\loadmathjax
 \mjdeqn{E[S_t] = exp(E[ln(S_t)] + \frac{1}{2}Var[ln(S_t)])}{exp(E[ln(S[t])] + 1/2 Var[ln(S[t])])}
 Where:
-\mjdeqn{E[ln(S_t)] = \sum_{i=1}^Ne^{-(\kappa_it)}x_i(0) + \mu t}{E[ln(S[t])] = sum_{i=1}^N (e^(-(kappa[i] t)) x[i,0] + mu * t)}
+\mjdeqn{E[ln(S_t)] = season(t) + \sum_{i=1}^Ne^{-(\kappa_it)}x_i(0) + \mu t}{E[ln(S[t])] = season(t) + sum_{i=1}^N (e^(-(kappa[i] t)) x[i,0] + mu * t)}
 
 Where \mjeqn{\kappa_i = 0}{kappa[i] = 0} when \code{GBM=T} and \mjeqn{\mu = 0}{mu = 0} when \code{GBM = F}
 
@@ -38,12 +38,14 @@ Var[ln(S[t])] = sigma[1]^2 * t + sum_{i.j != 1} (sigma[i] sigma[j] rho[i,j] (1 -
 
 and thus:
 
-\mjdeqn{E[S_t] = exp(\sum_{i=1}^N e^{-\kappa_it}x_i(0) + (\mu + \frac{1}{2}\sigma_1^2)t + \frac{1}{2}\sum_{i.j\neq1} \sigma_i\sigma_j\rho_{i,j}\frac{1-e^{-(\kappa_i+\kappa_j)t}}{\kappa_i+\kappa_j})}{
-E[S[t]] = exp( sum_{i=1}^N e^(-kappa[i] t) x[i,0] + (mu + 1/2 sigma[1]^2)t + 1/2 (sum_{i.j != 1}( sigma[i] sigma[j] rho[i,j] (1 - e^(-(kappa[i] + kappa[j])t)) / (kappa[i] + kappa[j]))) )}
+\mjdeqn{E[S_t] = exp(season(t) + \sum_{i=1}^N e^{-\kappa_it}x_i(0) + (\mu + \frac{1}{2}\sigma_1^2)t + \frac{1}{2}\sum_{i.j\neq1} \sigma_i\sigma_j\rho_{i,j}\frac{1-e^{-(\kappa_i+\kappa_j)t}}{\kappa_i+\kappa_j})}{
+E[S[t]] = exp(season(t) + sum_{i=1}^N e^(-kappa[i] t) x[i,0] + (mu + 1/2 sigma[1]^2)t + 1/2 (sum_{i.j != 1}( sigma[i] sigma[j] rho[i,j] (1 - e^(-(kappa[i] + kappa[j])t)) / (kappa[i] + kappa[j]))) )}
 
 Under the assumption that the first factor follows a Brownian Motion, in the long-run expected spot prices grow over time at a constant rate of \mjeqn{\mu + \frac{1}{2}\sigma_1^2}{mu + 1/2 sigma[1]} as the \mjeqn{e^{-\kappa_it}}{e^(-kappa[i] * t)} and \mjeqn{e^{-(\kappa_i + \kappa_j)t}}{e^(-(kappa[i] + kappa[j]))} terms approach zero.
 
-An important consideration when forecasting spot prices using parameters estimated through maximum likelihood estimation is that the parameter estimation process takes the assumption of risk-neutrality and thus the true process growth rate \mjeqn{\mu}{mu} is not estimated with a high level of precision. This can be shown from the higher standard error for \mjeqn{\mu}{mu} than other estimated parameters, such as the risk-neutral growth rate \mjeqn{\mu^*}{mu^*}. See Schwartz and Smith (2000) for more details.
+An important consideration when forecasting spot prices using parameters estimated through maximum likelihood estimation is that the parameter estimation process takes the assumption of risk-neutrality and thus the
+true process growth rate \mjeqn{\mu}{mu} is not estimated with a high level of precision. This can be shown from the higher standard error for \mjeqn{\mu}{mu} than other estimated parameters,
+such as the risk-neutral growth rate \mjeqn{\mu^*}{mu^*}. See Schwartz and Smith (2000) for more details.
 }
 \examples{
 # Forecast the Schwartz and Smith (2000) two-factor oil model:
