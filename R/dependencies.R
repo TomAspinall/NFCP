@@ -27,7 +27,7 @@
 #'When \code{GBM = TRUE}:
 #'\mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 #'When \code{GBM = FALSE}:
-#'\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = E + season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 #'
 #'Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 #'
@@ -163,8 +163,8 @@ NFCP_parameters <- function(N_factors, GBM, initial_states, N_ME, N_season = 0, 
   cat("Risk Neutral SDE: \n\n")
 
   statement <- ifelse(GBM, "log(s_t) = ", "log(s_t) = E + ")
-  if(N_season > 0) statement <- paste0(statement, "season_t")
-  cat(paste0(statement, " + sum(x_t)\n\n"))
+  if(N_season > 0) statement <- paste0(statement, "season_t + ")
+  cat(paste0(statement, "sum(x_t)\n\n"))
 
   cat("Where: \n")
   if(GBM){

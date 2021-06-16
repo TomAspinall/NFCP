@@ -49,7 +49,7 @@
 #'When \code{GBM = TRUE}:
 #'\mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 #'When \code{GBM = FALSE}:
-#'\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = E + season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 #'
 #'Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 #'
@@ -575,9 +575,9 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
     ### Number of univariate observations
     np_IC <- sum(!is.na(c(log_futures)))
     ### Akaike Information Criterion:
-    AIC <- ((2 * length(parameter_values)) - 2 * log_likelihood)/np_IC
+    AIC <- ((2 * length(parameter_values)) - 2 * log_likelihood)
     ### Bayesian Information Criterion:
-    BIC <- (length(parameter_values) * log(np_IC) - 2 * log_likelihood)/np_IC
+    BIC <- (length(parameter_values) * log(np_IC) - 2 * log_likelihood)
     IC <- c("AIC" = AIC, "BIC" = BIC)
 
     ###Volatility TSFit:

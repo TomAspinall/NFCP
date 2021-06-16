@@ -165,7 +165,7 @@ Stitched data is classifed as 'complete' due to the absence of missing values (i
 ##Example 1 - Replicating the Schwartz and Smith (2000)
 ##Two-Factor Crude Oil commodity pricing model:
 
-SS_oil_2F <- NFCP_Kalman_filter(
+Oil_2F <- NFCP_Kalman_filter(
  parameter_values = SS_oil$two_factor,
  parameter_names = names(SS_oil$two_factor),
  log_futures = log(SS_oil$stitched_futures),
@@ -183,14 +183,13 @@ In this case, the time-to-maturity of futures prices are considered constant, an
 The Kalman filter can be applied to all available futures contracts by passing the contract data and time to maturity of contracts at each observation into the 'NFCP_Kalman_filter' function.
 
 ```{r}
+Oil_2F_parameters <- SS_oil$two_factor[1:7]
 ### Assume a constant measurement error in parameters of 1%:
-SS_oil_2F_parameters <- SS_oil$two_factor
-SS_oil_2F_parameters <- SS_oil_2F_parameters[!grepl("ME", names(SS_oil_2F_parameters))]
-SS_oil_2F_parameters["ME_1"] <- 0.01
+Oil_2F_parameters["ME_1"] <- 0.01
 
-SS_oil_2F_contracts <- NFCP_Kalman_filter(
- parameter_values = SS_oil_2F_parameters,
- parameter_names = names(SS_oil_2F_parameters),
+Oil_2F_contracts <- NFCP_Kalman_filter(
+ parameter_values = Oil_2F_parameters,
+ parameter_names = names(Oil_2F_parameters),
  log_futures = log(SS_oil$contracts),
  futures_TTM = SS_oil$contract_maturities,
  dt = SS_oil$dt,
@@ -229,11 +228,11 @@ The assumption that measurement errors are independent and identical is clearly 
 
 Parameter estimation of commodity pricing models is performed through the 'NFCP_MLE' function. The 'NFCP_MLE' function is a wrapper of the 'NFCP_Kalman_filter' function to the 'genoud' function of the 'rgenoud' package. The 'genoud' function uses genetic algorithms to solve optimization problems such as MLE (Mebane and Sekhon, 2011). All arguments of the 'genoud' function can be passed through the 'NFCP_MLE' function and can have a large impact on the estimated parameters of a commodity pricing model. Increasing the population size in particular can have a large impact on maximum likelihood estimates at the cost of increasing the computation time of the estimation process. The MLE is also a bounded search process and restricting the search space of unknown parameters can increase processing speed of the MLE process. Setting bounds of the search is performed through the "Domains" argument, and the function "NFCP_domains" can be used to conveniently specify upper and lower bounds for unknown parameters. Setting search spaces of parameters that are too restrictive, however, has the chance of returning parameter estimates at the upper or lower bounds of the search space.
 
-The following example presents an estimation of a one-factor geometric Brownian motion model with deterministic seasonality to the Schwartz and Smith (2000) crude oil dataset. There are five futures prices observed at each discrete time point, allowing us to consider a model with between 1-5 measurement errors. When only one measurement error (i.e., 'N_ME' = 1) is considered, the measurement error is assumed independent and identical. When five measurement errors are considered (i.e., 'N_ME' = 5), the measurement error is assumed independent and unique. In this example, three measurement errors are considered. The first measurement error considers contracts with maturities of less than six months (i.e., ME_TTM[1] = 0.5). This corresponds to the first two observations. The second measurement error considers observations with maturities between 6-12 months (the third observation), and the final measurement error considers observations with maturities between 12-18 months (observations four and five). This function call can take up to one-minute to execute:
+The following example presents an estimation of a one-factor geometric Brownian motion model with deterministic seasonality to the Schwartz and Smith (2000) crude oil dataset. There are five futures prices observed at each discrete time point, allowing us to consider a model with between 1-5 measurement errors. When only one measurement error (i.e., 'N_ME' = 1) is considered, the measurement error is assumed independent and identical. When five measurement errors are considered (i.e., 'N_ME' = 5), the measurement error is assumed independent and unique. In this example, three measurement errors are considered. The first measurement error considers contracts with maturities of less than six months (i.e., ME_TTM[1] = 0.5). This corresponds to the first two observations. The second measurement error considers observations with maturities between 6-12 months (the third observation), and the final measurement error considers observations with maturities between 12-18 months (observations four and five). Parallel processing is supported in the 'NFCP_MLE' and associated 'genoud' function through the inclusion of a cluster object from the 'parallel' package in the 'cluster' argument. This function call can take up to one-minute to execute:
 
 ```{r}
 # Estimate a GBM model:
-SS_oil_1F <- NFCP_MLE(
+Oil_1F <- NFCP_MLE(
       ## Arguments
       log_futures = log(SS_oil$stitched_futures),
       dt = SS_oil$dt,
@@ -242,16 +241,11 @@ SS_oil_1F <- NFCP_MLE(
       ME_TTM = c(0.5, 1, 1.5),
       N_factors = 1,
       N_season = 0,
-      GBM = TRUE,
-      cluster = NULL,
-      Richardsons_extrapolation = TRUE,
-      ## Genoud arguments:
-      pop.size = 1000, optim.method = "L-BFGS-B", print.level = 0, hessian = TRUE,
-      max.generations = 100, solution.tolerance = 0.1)
+      print.level = 0, pop.size = 1000)
 
 ##Print results:
-print(round(rbind(`Estimated Parameter` = SS_oil_1F$estimated_parameters, 
-                  `Standard Error` = SS_oil_1F$standard_errors),4))
+print(round(rbind(`Estimated Parameter` = Oil_1F$estimated_parameters, 
+                  `Standard Error` = Oil_1F$standard_errors),4))
 ```
 
 According to the estimated parameters and associated standard errors, all parameters are significantly different from zero at the 95% confidence level except for the long-term drift of the true spot price process "mu". Parameter "mu" is generally estimated with a low level of precision as the true drift rate is not directly observed in the Kalman filter, rather the risk-adjusted drift rate "mu_rn" is, which is estimated with a higher level of precision.
@@ -264,7 +258,7 @@ Log-likelihood scores of different N-factor models can be directly compared (giv
 
 The log-likelihood score of one- and two-factor models estimated on this term structure data are:
 ```{r}
-print(matrix(c(SS_oil_1F$MLE, SS_oil_2F$`Log-Likelihood`), 
+print(matrix(c(Oil_1F$MLE, Oil_2F$`Log-Likelihood`), 
              dimnames = list(c("One-Factor", "Two-Factor"), "Log-Likelihood")))
 ```
 
@@ -273,8 +267,8 @@ The one-factor GBM model can be obtained from the two-factor Short-Term/Long-Ter
 An alternate model selection critera are the Akaike and Bayesian information criterion, which are returned by the 'NFCP_Kalman_filter' and 'NFCP_MLE' functions:
 
 ```{r}
-print(round(rbind("One-Factor" = SS_oil_1F$`Information Criteria`, 
-                  "Two-Factor" = SS_oil_2F$`Information Criteria`), 4))
+print(round(rbind("One-Factor" = Oil_1F$`Information Criteria`, 
+                  "Two-Factor" = Oil_2F$`Information Criteria`), 4))
 ```
 
 In general, lower (i.e., more negative) AIC and BIC scores are attributed with better models. The Short-Term/Long-Term model has a substantially more negative AIC and BIC scores. Considering and penalizing the greater number of parameters of the two-factor model over the one-factor model, it still is attributed with a greater fit to the observed term structure data.
@@ -285,7 +279,7 @@ Errors in model Fit to the logarithm of futures prices were presented in table 3
 
 ```{r}
 ##Replicate Table 3 of Schwartz and Smith (2000):
-print(round(t(SS_oil_2F[["Term Structure Fit"]]),4))
+print(round(t(Oil_2F[["Term Structure Fit"]]),4))
 ```
 
 The estimated error for contract "F13" in the two-factor model presented by Schwartz and Smith (2000) was estimated to be zero, meaning the commodity pricing model perfectly matched futures prices of the contract at each observation point. The two-factor model is therefore most accurate for forecasting medium-term futures prices. The N-factor model is able to perfectly match up to N futures contracts during parameter estimation if measurement error is not assumed identical and stitched data is applied (Schwartz and Smith, 2000).
@@ -294,8 +288,8 @@ Another measure of robustness is to evaluate the mean squared error (Bias) and r
 
 ```{r}
 CN_table3 <- matrix(nrow = 2, ncol = 2, dimnames = list(c("One-Factor","Two-Factor"), c("RMSE", "Bias")))
-CN_table3[,"Bias"] <- c(SS_oil_1F$`Filtered Error`["Bias"], SS_oil_2F$`Filtered Error`["Bias"])
-CN_table3[,"RMSE"] <- c(SS_oil_1F$`Filtered Error`["RMSE"], SS_oil_2F$`Filtered Error`["RMSE"])
+CN_table3[,"Bias"] <- c(Oil_1F$`Filtered Error`["Bias"], Oil_2F$`Filtered Error`["Bias"])
+CN_table3[,"RMSE"] <- c(Oil_1F$`Filtered Error`["RMSE"], Oil_2F$`Filtered Error`["RMSE"])
 
 print(round(CN_table3, 4))
 
@@ -311,16 +305,16 @@ We begin by considering the contract observation error of the one-factor estimat
 
 ```{r, out.width='.49\\linewidth'}
 ##One Factor
-matplot(as.Date(rownames(SS_oil_1F$V)), SS_oil_1F$V, type = 'l',
+matplot(as.Date(rownames(Oil_1F$V)), Oil_1F$V, type = 'l',
 xlab = "", ylab = "Observation Error",
 main = "Contract Observation Error: One-Factor Model"); legend("bottomright", 
-colnames(SS_oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
+colnames(Oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 
 ##Two-Factor
-matplot(as.Date(rownames(SS_oil_2F$V)), SS_oil_2F$V, type = 'l',
+matplot(as.Date(rownames(Oil_2F$V)), Oil_2F$V, type = 'l',
 xlab = "", ylab = "Observation Error", ylim = c(-0.3, 0.2),
 main = "Contract Observation Error: Two-Factor Model"); legend("bottomright", 
-colnames(SS_oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
+colnames(Oil_2F$V),col=seq_len(5),cex=0.8,fill=seq_len(5))
 ```
 
 Observation errors of the two-factor model were lower than the one-factor model in this case. For the two-factor model, observation error for the one month maturity contract is far higher than the other contracts, meaning the two-factor models ability to predict very short-term contracts is lower than middle and long term contracts.
@@ -330,7 +324,7 @@ Comparing this with the contract observation error of the estimated one-factor G
 This is also shown by the root mean squared error (RMSE) of each contract:
 
 ```{r}
-matplot(cbind(SS_oil_1F$`Term Structure Fit`["RMSE",], SS_oil_2F$`Term Structure Fit`["RMSE",]), 
+matplot(cbind(Oil_1F$`Term Structure Fit`["RMSE",], Oil_2F$`Term Structure Fit`["RMSE",]), 
      type = 'l', main = "Root Mean Squared Error of Futures Contracts", 
      xlab = "Contract", ylab = "RMSE"); legend("right",c("One-Factor", "Two-Factor"),
                                                col=1:2,cex=0.8,fill=1:2)
@@ -345,9 +339,9 @@ The two-factor model can be interpreted as the decomposition of spot prices into
 ```{r}
 ##Replicate Figure 4 of Schwartz and Smith (2000):
 SS_figure_4 <- cbind(`Equilibrium Price` =
-                     exp(SS_oil_2F$X[,1]),
+                     exp(Oil_2F$X[,1]),
                     `Spot Price` =
-                     SS_oil_2F$Y[,"filtered Spot"])
+                     Oil_2F$Y[,"filtered Spot"])
 
 matplot(as.Date(rownames(SS_figure_4)), SS_figure_4, type = 'l',
 xlab = "", ylab = "Oil Price ($/bbl, WTI)", col = 1,
@@ -360,7 +354,7 @@ Cortazar and Naranjo (2006) plot the time series of the standard deviation for s
 
 When 
 ```{r}
-plot(as.Date(rownames(SS_oil$contracts)), sqrt(SS_oil_2F_contracts$P_t[1,1,]), 
+plot(as.Date(rownames(SS_oil$contracts)), sqrt(Oil_2F_contracts$P_t[1,1,]), 
      type = 'l', xlab = "Date", ylab = "Std. Dev.", 
      main = "Time Series of the Std. Dev for State Variable 1")
 ```
@@ -443,12 +437,12 @@ max_maturity <- max(tail(SS_oil$contract_maturities,1), na.rm = TRUE)
 ##Estimated Futures Prices:
 
 ### One Factor (GBM):
-oil_TS_1F <- futures_price_forecast(x_0 = SS_oil_1F$x_t,
-                                         parameters = SS_oil_1F$estimated_parameters,
+oil_TS_1F <- futures_price_forecast(x_0 = Oil_1F$x_t,
+                                         parameters = Oil_1F$estimated_parameters,
                                          futures_TTM = seq(0,max_maturity,1/12))
 
 ### Two Factor:
-oil_TS_2F <- futures_price_forecast(x_0 = SS_oil_2F$x_t,
+oil_TS_2F <- futures_price_forecast(x_0 = Oil_2F$x_t,
                                          parameters = SS_oil$two_factor,
                                          futures_TTM = seq(0,max_maturity,1/12))
 
@@ -478,7 +472,7 @@ V_TSFit <- TSfit_volatility(
  dt = SS_oil$dt)
 
 ##Plot Results:
-matplot(V_TSFit["Maturity",], cbind(SS_oil_1F$`Term Structure Volatility Fit`["Theoretical Volatility",], 
+matplot(V_TSFit["Maturity",], cbind(Oil_1F$`Term Structure Volatility Fit`["Theoretical Volatility",], 
                                     V_TSFit["Theoretical Volatility",]), type = 'l',
 xlab = "Maturity (Years)", ylab = "Volatility (%)", 
 ylim = c(0, 0.5), main = "Volatility Term Structure of Futures Returns"); points(
@@ -499,7 +493,7 @@ Spot prices are simulated using the 'mvrnorm' function of the 'MASS' package to 
 ```{r}
 ##100 antithetic simulations of one year of monthly observations
 simulated_spot_prices <- spot_price_simulate(
- x_0 = SS_oil_2F$x_t,
+ x_0 = Oil_2F$x_t,
  parameters = SS_oil$two_factor,
  t = 1,
  dt = 1/12,
@@ -536,7 +530,7 @@ Aggregated, stitched futures data as well as individual contracts are able to be
 ## Simulate Crude Oil Contract Prices under a Two-Factor model
 
 simulated_contracts <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
-                                            parameters = SS_oil_2F_parameters,
+                                            parameters = Oil_2F_parameters,
                                             dt = SS_oil$dt,
                                             N_obs = nrow(SS_oil$contracts),
                                             futures_TTM = SS_oil$contract_maturities)
@@ -547,7 +541,7 @@ matplot(as.Date(rownames(SS_oil$contracts)), simulated_contracts$futures_prices,
         main = "Simulated Futures Contracts")
 ```
 
-Simulating futures prices can be useful for various analytic purposes, including the ability for the parameter estimation procedure to find the 'true' parameters of the spot price process that futures prices were simulated from.
+Simulating futures prices can be useful for various analytic purposes, such as testing model performance on simulated data where parameter values are known a priori.
 
 ## 4.13 Option Valuation:
 
@@ -566,41 +560,36 @@ The European and American put option prices in this example can be calculated as
 ```{r}
 Option_prices <- matrix(rep(0,2), nrow = 2, ncol = 3, dimnames = list(c("One-Factor", "Two-Factor"), c("European", "American", "Early Exercise Value")))
 
+# Strike Price:
+strike <- 20
+# Annual risk-free interest rate:
+risk_free <- 0.05
+# Maturity of option and future:
+option <- 1
+future <- 2
+## American option only - number of antithetic simulations, time step (in years):
+time_step <- 1/50
+monte_carlo <- 1e5
+
 ## One-factor European put option value: 
-Option_prices[1,1] <- European_option_value(x_0 = SS_oil_1F$x_t,
-                                         parameters = SS_oil_1F$estimated_parameters,
-                                         futures_maturity = 2,
-                                         option_maturity  = 1,
-                                         K = 20,
-                                         r = 0.05)
+Option_prices[1,1] <- European_option_value(x_0 = Oil_1F$x_t,
+                                            parameters = Oil_1F$estimated_parameters,
+                                            futures_maturity = future, option_maturity  = option, K = strike, r = risk_free)
+## Two-factor European put option value: 
+Option_prices[2,1] <- European_option_value(x_0 = Oil_2F$x_t,
+                                         parameters = SS_oil$two_factor,
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free)
 
 ## One-factor American put option value:
-Option_prices[1,2] <- American_option_value(x_0 = SS_oil_1F$x_t,
-                                         parameters = SS_oil_1F$estimated_parameters,
-                                         futures_maturity = 2,
-                                         option_maturity = 1,
-                                         K = 20,
-                                         r = 0.05,
-                                         N_simulations = 1e5,
-                                         dt = 1/50)
-
-## Two-factor European put option value: 
-Option_prices[2,1] <- European_option_value(x_0 = SS_oil_2F$x_t,
-                                         parameters = SS_oil$two_factor,
-                                         futures_maturity = 2,
-                                         option_maturity = 1,
-                                         K = 20,
-                                         r = 0.05)
-
+Option_prices[1,2] <- American_option_value(x_0 = Oil_1F$x_t,
+                                         parameters = Oil_1F$estimated_parameters,
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free, 
+                                         N_simulations = monte_carlo, dt = time_step)
 ## Two-factor American put option value:
-Option_prices[2,2] <- American_option_value(x_0 = SS_oil_2F$x_t,
+Option_prices[2,2] <- American_option_value(x_0 = Oil_2F$x_t,
                                          parameters = SS_oil$two_factor,
-                                         futures_maturity = 2,
-                                         option_maturity = 1,
-                                         K = 20,
-                                         r = 0.05,
-                                         N_simulations = 1e5,
-                                         dt = 1/50)
+                                         futures_maturity = future, option_maturity = option, K = strike, r = risk_free, 
+                                         N_simulations = monte_carlo, dt = time_step)
 
 Option_prices[,3] <- Option_prices[,2] - Option_prices[,1]
 
@@ -618,6 +607,8 @@ When 'verbose = TRUE' is set for the 'European_option_value' function, the first
 When 'verbose = TRUE' is set for the 'American_option_value' function, simulated characteristics of the option are returned, including the standard error of estimates, the cumulative probability of early exercise over the life of the option and the expected exercise time of the American option.
 
 The 'American_option_value' function includes parameter arguments 'orthogonal' and 'degree'. These are arguments relating to the LSM simulation method used to approximate the option value. The convergence properties of the LSM simulation function state that the calculated American option value converges to the true value as the number of simulations and basis functions increase (Longstaff and Schwartz, 2001; Clément, Lamberton and Protter, 2002). It is therefore important to consider that the values 'N_simulations' and 'degree' are sufficiently high and that 'dt' is sufficiently low to allow the 'American_option_value' function to adequately converge to the true solution. The convergence of the American option value can be evaluated through the magnitude of the standard error. Different orthogonal polynomials available in the 'orthogonal' argument are likely to be insensitive to calculated American option value. 
+
+Empirical studies within existing literature has suggested that in order for a commodity pricing model to accurately price European and American financial options, a stochastic volatility specification is required. See Cortazar et al. (2016).
 
 # 5. Discussion:
 
@@ -652,6 +643,8 @@ Cortazar, G., & E. S. Schwartz, (2003). Implementing a stochastic model for oil 
 Cortazar, G., and L. Naranjo, (2006). An N-factor Gaussian model of oil futures prices. Journal of Futures Markets: Futures, Options, and Other Derivative Products, 26(3), 243-268.
 
 Mebane, W. R., and J. S. Sekhon, (2011). Genetic Optimization Using Derivatives: The rgenoud Package for R. Journal of Statistical Software, 42(11), 1-26. URL https://www.jstatsoft.org/v42/i11/.
+
+Cortazar, G., Gutierrez, S., & Ortega, H. (2016). Empirical performance of commodity pricing models: when is it worthwhile to use a stochastic volatility specification?. Journal of Futures Markets, 36(5), 457-487.
 
 Aspinall et al., (2020). Estimation of a term structure model of carbon prices through state space methods: The European Union emissions trading scheme. Accounting and Finance.
 

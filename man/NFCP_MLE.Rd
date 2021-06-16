@@ -14,9 +14,7 @@ NFCP_MLE(
   ME_TTM = NULL,
   GBM = TRUE,
   estimate_initial_state = FALSE,
-  Richardsons_extrapolation = TRUE,
   cluster = FALSE,
-  Domains = NULL,
   ...
 )
 }
@@ -42,16 +40,10 @@ When the number of 'ME' parameter values is equal to one or the number of column
 
 \item{estimate_initial_state}{\code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).}
 
-\item{Richardsons_extrapolation}{\code{logical}. When \code{TRUE}, the \code{grad} function from the \code{numDeriv} package is called to
-approximate the gradient within the \code{genoud} optimization algorithm.}
-
 \item{cluster}{\code{cluster}.    An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 to be performed across multiple cluster nodes.}
 
-\item{Domains}{\code{matrix}. An optional object with two-columns specifiying the lower and upper bounds for the parameter estimation process. The \code{NFCP_domains} function is highly recommended.
-When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP_domains} function are used.}
-
-\item{...}{additional arguments to be passed into the \code{genoud} genetic algorithm optimization procedure. See \code{help(genoud)}}
+\item{...}{additional arguments to be passed into the \code{genoud} genetic algorithm numeric optimization. These can highly influence the maximum likelihood estimation procedure. See \code{help(genoud)}}
 }
 \value{
 \code{NFCP_MLE} returns a \code{list} with 10 objects. 9 objects are returned when the user has specified not to calculate the hessian matrix at solution.
@@ -94,8 +86,8 @@ of the filtered values to observed futures prices.  \cr
 }
 \description{
 \loadmathjax
-The \code{NFCP_MLE} function performs parameter estimation of commodity pricing models under the N-factor framework of Cortazar and Naranjo (2006). It uses term structure futures data and estimates unknown paraemeters through maximum likelihood estimation.
-\code{NFCP_MLE} allows for missing observations, a variable number of state variables, deterministic seasonality, differing treatment of the measurement error of the model as well as either constant or variable time to maturities of term structure observations.
+The \code{NFCP_MLE} function performs parameter estimation of commodity pricing models under the N-factor framework of Cortazar and Naranjo (2006). It uses term structure futures data and estimates unknown parameters through maximum likelihood estimation.
+\code{NFCP_MLE} allows for missing observations, a variable number of state variables, deterministic seasonality and a variable number of measurement error terms.
 }
 \details{
 The \code{NFCP_MLE} function facilitates parameter estimation of commodity pricing models under the N-factor framework through the Kalman filter and maximum likelihood estimation. \code{NFCP_MLE}
@@ -104,22 +96,28 @@ uses genetic algorithms through the \code{genoud} function of the \code{rgenoud}
 Parameter estimation of commodity pricing models can involve a large number of observations, state variables and unknown parameters. It also features an objective log-likelihood function that is nonlinear and
 discontinuous with respect to model parameters. \code{NFCP_MLE} is designed to perform parameter estimation as efficiently as possible, maximizing the likelihood of attaining a global optimum.
 
-When \code{Richardsons_extrapolation = TRUE}, gradients are approximated of the numeric optimization algorithm are approximated through the \code{grad} function of the \code{numDeriv} pacakage. Richardsons
-extrapolation is regarded for its ability to improve the approximation of estimation methods, which may improve the likelihood of obtained a global maxmimum estimate of the log-likelihood.
 
 Arguments passed to the \code{genoud} function can greatly influence estimated parameters as well as computation time and must be considered when performing parameter estimation. All arguments of the \code{genoud} function
-may be passed through the \code{NFCP_MLE} function (except for \code{gradient.check}, which is hard set to false).
+may be passed through the \code{NFCP_MLE} function.
+
+
+When \code{grad} is not specified, the \code{grad} function from the \code{numDeriv} package is called to
+approximate the gradient within the \code{genoud} optimization algorithm through Richardsons extrapolation.
+
+Richardsons extrapolation is regarded for its ability to improve the approximation of estimation methods,
+which may improve the likelihood of obtained a global maxmimum estimate of the log-likelihood.
 
 The population size can highly influence parameter estimates at the expense of increased computation time. For commodity pricing models with a large number of unknown parameters, large population sizes may be necessary to maximize the estimation process.
 
-\code{NFCP_MLE} performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
+\code{NFCP_MLE} by default performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
 the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by argument \code{Domains}.
 
 When \code{Domains} is not specified, the default bounds specified by the \code{NFCP_domains} function are used. The size of the search domains of unknown parameters can highly
-influence the computation time of the \code{NFCP_MLE} function, however setting domains that are too restrictive may result in estimated parameters returned at the upper or lower bounds.
+influence the computation time of the \code{NFCP_MLE} function, however setting domains that are too restrictive may result in estimated parameters returned at the upper or lower bounds. Custom search domains can be used
+through the \code{NFCP_domains} function and subsequently the \code{Domains} argument of this function.
 
 Finally, the maximum likelihood estimation process of parameters provides no in-built guarantee that the estimated parameters of commodity models are financially sensible results. When the commodity model has been over-parameterized
-(i.e., the number of factors N specified is too high) or the optimization algorithm has failed to attain a global maximum likelihood estimate, the estimated parameters may be irrational.
+(i.e., the number of factors N specified is too high) or the optimization algorithm has failed to attain a global maximum likelihood estimate, estimated parameters may be irrational.
 
 Evidence of irrational parameter estimates include correlation coefficients that are extremely large (e.g., > 0.95 or < -0.95), risk-premiums or drift terms that are unrealistic, filtered state variables that are unrealistic and extremely large/small mean-reverting terms with associated large standard errors.
 
@@ -136,7 +134,7 @@ cyclical seasonal function \mjeqn{season(t)}{season(t)} to be considered.
 When \code{GBM = TRUE}:
 \mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 When \code{GBM = FALSE}:
-\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
+\mjdeqn{log(S_{t}) = E + season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 
 Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 
@@ -182,7 +180,7 @@ The following constant parameters are defined as:
 
 Including additional factors within the spot-price process allow for additional flexibility (and possibly fit) to the term structure of a commodity.
 The N-factor model nests simpler models within its framework, allowing for the fit of different N-factor models (applied to the same term structure data),
-represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test.
+represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test. The AIC or BIC can also be used to compare models.
 
 \bold{Disturbances - Measurement Error}:
 
@@ -219,20 +217,16 @@ assumption that the initial estimate of the spot price is equal to the closest t
 The initial states of factors that follow an Ornstein-Uhlenbeck have a transient effect on future observations. This makes the diffuse assumption reasonable and further means that initial states cannot generally be accurately estimated.
 }
 \examples{
-# Estimate the Short-Term/Long-Term Model:
-SS_2F_estimated_model <- NFCP_MLE(
+# Estimate a 'one-factor' geometric Brownian motion model:
+Oil_1F_estimated_model <- NFCP_MLE(
 ## Arguments
 log_futures = log(SS_oil$contracts)[1:20,1:5],
 dt = SS_oil$dt,
 futures_TTM= SS_oil$contract_maturities[1:20,1:5],
-N_ME = 1,
-N_factors = 1, GBM = TRUE,
+N_factors = 1, N_ME = 1,
 ## Genoud arguments:
-hessian = TRUE,
-Richardsons_extrapolation = FALSE,
-pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
-max.generations = 0, solution.tolerance = 10)
-
+pop.size = 4, print.level = 0, gr = NULL,
+max.generations = 0)
 }
 \references{
 Hannan, E. J., et al. (1970). "The seasonal adjustment of economic time series." \emph{International economic review}, 11(1): 24-52.

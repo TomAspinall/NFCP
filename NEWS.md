@@ -4,6 +4,9 @@
 - The 'American_option_value' function now calculates American option on futures contracts of commodities, which is more reflective of actual options in commodity markets.
 - The vignette of 'NFCP' has been updated, with more detail throughout the document.
 - Deprecated function names removed
+- Fixed a bug in 'NFCP_MLE' when the ... argument 'hessian' is FALSE.
+- Removed the 'richardsons_extrapolation' argument of the 'NFCP_MLE' function, however it is still supported within the function.
+- Minor documentation changes
 
 # NFCP 1.0.1
 

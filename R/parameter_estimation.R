@@ -2,8 +2,8 @@
 #'
 #'@description
 #'\loadmathjax
-#'The \code{NFCP_MLE} function performs parameter estimation of commodity pricing models under the N-factor framework of Cortazar and Naranjo (2006). It uses term structure futures data and estimates unknown paraemeters through maximum likelihood estimation.
-#' \code{NFCP_MLE} allows for missing observations, a variable number of state variables, deterministic seasonality, differing treatment of the measurement error of the model as well as either constant or variable time to maturities of term structure observations.
+#'The \code{NFCP_MLE} function performs parameter estimation of commodity pricing models under the N-factor framework of Cortazar and Naranjo (2006). It uses term structure futures data and estimates unknown parameters through maximum likelihood estimation.
+#' \code{NFCP_MLE} allows for missing observations, a variable number of state variables, deterministic seasonality and a variable number of measurement error terms.
 #'
 #'@param log_futures \code{matrix}. The natural logarithm of observed futures prices. Each row must correspond to quoted futures prices at a particular date and every column must correspond to a unique futures contract.
 #'NA values are allowed.
@@ -26,16 +26,11 @@
 #'
 #'@param estimate_initial_state  \code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).
 #'
-#'@param Richardsons_extrapolation \code{logical}. When \code{TRUE}, the \code{grad} function from the \code{numDeriv} package is called to
-#'approximate the gradient within the \code{genoud} optimization algorithm.
 #'
 #'@param cluster \code{cluster}.	An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 #'to be performed across multiple cluster nodes.
 #'
-#'@param Domains \code{matrix}. An optional object with two-columns specifiying the lower and upper bounds for the parameter estimation process. The \code{NFCP_domains} function is highly recommended.
-#'When \code{Domains} is not specified, the standard bounds specified within the \code{NFCP_domains} function are used.
-#'
-#'@param ... additional arguments to be passed into the \code{genoud} genetic algorithm optimization procedure. See \code{help(genoud)}
+#'@param ... additional arguments to be passed into the \code{genoud} genetic algorithm numeric optimization. These can highly influence the maximum likelihood estimation procedure. See \code{help(genoud)}
 #'
 #'@details
 #'
@@ -45,22 +40,28 @@
 #'Parameter estimation of commodity pricing models can involve a large number of observations, state variables and unknown parameters. It also features an objective log-likelihood function that is nonlinear and
 #'discontinuous with respect to model parameters. \code{NFCP_MLE} is designed to perform parameter estimation as efficiently as possible, maximizing the likelihood of attaining a global optimum.
 #'
-#'When \code{Richardsons_extrapolation = TRUE}, gradients are approximated of the numeric optimization algorithm are approximated through the \code{grad} function of the \code{numDeriv} pacakage. Richardsons
-#'extrapolation is regarded for its ability to improve the approximation of estimation methods, which may improve the likelihood of obtained a global maxmimum estimate of the log-likelihood.
 #'
 #'Arguments passed to the \code{genoud} function can greatly influence estimated parameters as well as computation time and must be considered when performing parameter estimation. All arguments of the \code{genoud} function
-#'may be passed through the \code{NFCP_MLE} function (except for \code{gradient.check}, which is hard set to false).
+#'may be passed through the \code{NFCP_MLE} function.
+#'
+#'
+#'When \code{grad} is not specified, the \code{grad} function from the \code{numDeriv} package is called to
+#'approximate the gradient within the \code{genoud} optimization algorithm through Richardsons extrapolation.
+#'
+#'Richardsons extrapolation is regarded for its ability to improve the approximation of estimation methods,
+#'which may improve the likelihood of obtained a global maxmimum estimate of the log-likelihood.
 #'
 #'The population size can highly influence parameter estimates at the expense of increased computation time. For commodity pricing models with a large number of unknown parameters, large population sizes may be necessary to maximize the estimation process.
 #'
-#'\code{NFCP_MLE} performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
+#'\code{NFCP_MLE} by default performs boundary constrained optimization of log-likelihood scores and does not allow does not allow for out-of-bounds evaluations within
 #'the \code{genoud} optimization process, preventing candidates from straying beyond the bounds provided by argument \code{Domains}.
 #'
 #'When \code{Domains} is not specified, the default bounds specified by the \code{NFCP_domains} function are used. The size of the search domains of unknown parameters can highly
-#'influence the computation time of the \code{NFCP_MLE} function, however setting domains that are too restrictive may result in estimated parameters returned at the upper or lower bounds.
+#'influence the computation time of the \code{NFCP_MLE} function, however setting domains that are too restrictive may result in estimated parameters returned at the upper or lower bounds. Custom search domains can be used
+#'through the \code{NFCP_domains} function and subsequently the \code{Domains} argument of this function.
 #'
 #'Finally, the maximum likelihood estimation process of parameters provides no in-built guarantee that the estimated parameters of commodity models are financially sensible results. When the commodity model has been over-parameterized
-#'(i.e., the number of factors N specified is too high) or the optimization algorithm has failed to attain a global maximum likelihood estimate, the estimated parameters may be irrational.
+#'(i.e., the number of factors N specified is too high) or the optimization algorithm has failed to attain a global maximum likelihood estimate, estimated parameters may be irrational.
 #'
 #'Evidence of irrational parameter estimates include correlation coefficients that are extremely large (e.g., > 0.95 or < -0.95), risk-premiums or drift terms that are unrealistic, filtered state variables that are unrealistic and extremely large/small mean-reverting terms with associated large standard errors.
 #'
@@ -77,7 +78,7 @@
 #'When \code{GBM = TRUE}:
 #'\mjdeqn{log(S_{t}) = season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = season(t) + sum_{i=1}^n x[i,t]}
 #'When \code{GBM = FALSE}:
-#'\mjdeqn{log(S_{t}) = E + season(t) \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
+#'\mjdeqn{log(S_{t}) = E + season(t) + \sum_{i=1}^N x_{i,t}}{log(S[t]) = E + season(t) + sum_{i=1}^n x[i,t]}
 #'
 #'Where \code{GBM} determines whether the first factor follows a Brownian Motion or Ornstein-Uhlenbeck process to induce a unit root in the spot price process.
 #'
@@ -123,7 +124,7 @@
 #'
 #'Including additional factors within the spot-price process allow for additional flexibility (and possibly fit) to the term structure of a commodity.
 #'The N-factor model nests simpler models within its framework, allowing for the fit of different N-factor models (applied to the same term structure data),
-#'represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test.
+#'represented by the log-likelihood, to be directly compared with statistical testing possible through a chi-squared test. The AIC or BIC can also be used to compare models.
 #'
 #'\bold{Disturbances - Measurement Error}:
 #'
@@ -212,27 +213,24 @@
 #'\emph{Journal of Statistical Software}, 42(11), 1-26. URL http://www.jstatsoft.org/v42/i11/.
 #'
 #' @examples
-#'# Estimate the Short-Term/Long-Term Model:
-#'SS_2F_estimated_model <- NFCP_MLE(
+#'# Estimate a 'one-factor' geometric Brownian motion model:
+#'Oil_1F_estimated_model <- NFCP_MLE(
 #'## Arguments
 #'log_futures = log(SS_oil$contracts)[1:20,1:5],
 #'dt = SS_oil$dt,
 #'futures_TTM= SS_oil$contract_maturities[1:20,1:5],
-#'N_ME = 1,
-#'N_factors = 1, GBM = TRUE,
+#'N_factors = 1, N_ME = 1,
 #'## Genoud arguments:
-#'hessian = TRUE,
-#'Richardsons_extrapolation = FALSE,
-#'pop.size = 4, optim.method = "L-BFGS-B", print.level = 0,
-#'max.generations = 0, solution.tolerance = 10)
-#'
+#'pop.size = 4, print.level = 0, gr = NULL,
+#'max.generations = 0)
 #'@export
-NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE,
-                                  Richardsons_extrapolation = TRUE, cluster = FALSE, Domains = NULL, ...){
+NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE, cluster = FALSE, ...){
 
+  # ----------------------------------------------------------------------
+  # Input checks:
   time_0 <- proc.time()
 
-  ##Standardize format:
+  ## Standardize format:
   log_futures <- as.matrix(log_futures)
   futures_TTM <- as.matrix(futures_TTM)
 
@@ -249,8 +247,55 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME
     if(max(futures_TTM, na.rm = TRUE) > max(ME_TTM, na.rm = TRUE)) stop("Maximum observed contract maturity (futures_TTM) is greater than the max specified maturity grouping for the measurement error (ME_TTM)")
   }
 
-  ##Unknown Parameters:
+  ## Unknown Parameters:
   parameters <- NFCP::NFCP_parameters(N_factors, GBM, estimate_initial_state, N_ME, N_season)
+
+  # ----------------------------------------------------------------------
+  # This section develops the arguments applied to the genoud function call.
+
+  ## Custom arguments for NFCP specifically:
+  Domains <- NFCP::NFCP_domains(parameters)
+  solution.tolerance <- 0.1
+  max <- TRUE
+  boundary.enforcement <- 2
+  hessian <- TRUE
+  print.level <- 1
+  gradient.check <- FALSE
+
+  ##Gradient Function - Richardsons Extrapolation:
+  Richardsons_extrapolation <- TRUE
+  gr <- function(x,...) numDeriv::grad(func = NFCP::NFCP_Kalman_filter, x, parameter_names = parameters, log_futures = log_futures,
+                                       dt = dt, futures_TTM = futures_TTM, ME_TTM = ME_TTM)
+
+  ## Genoud standard parameter values:
+  pop.size <- 1000
+  starting.values <- project.path <- P9mix <- BFGSfn <- BFGShelp <- NULL
+  output.append <- transform <- debug <- balance  <- lexical <- data.type.int <- FALSE
+  hard.generation.limit <- MemoryMatrix <- BFGS <- TRUE
+  wait.generations <- default.domains <- 10
+  max.generations <- 100
+  unif.seed <- round(stats::runif(1, 1, 2147483647L))
+  int.seed <- round(stats::runif(1, 1, 2147483647L))
+  share.type <- instance.number <- 0
+  output.path <- "stdout"
+  P1 <- P2 <- P3 <- P4 <- P5 <- P6 <- P7 <- P8 <- 50
+  P9 <- 0
+  BFGSburnin <- 0
+  control <- list()
+  optim.method <- ifelse(boundary.enforcement < 2, "BFGS","L-BFGS-B")
+
+  fn_args <- match.call()
+
+  # Assign arguments that have been specified in ...
+  for(loop in 1:length(fn_args)){
+    var <- names(fn_args)[loop]
+    if(!var %in% c("log_futures", "dt", "futures_TTM", "N_factors", "N_season", "N_ME", 'ME_TTM', 'GBM','estimate_initial_state')){
+      # print(var)
+      if(!is.null(fn_args[[var]])) assign(var, fn_args[[var]])
+    }
+  }
+  if(!Richardsons_extrapolation) gr <- NULL
+  # ----------------------------------------------------------------------
 
   cat("----------------------------------------------------------------
 Term Structure Estimation: \n")
@@ -263,25 +308,23 @@ Term Structure Estimation: \n")
     cat("\n")
   }
 
-
-  ##Gradient Function?
-  if(Richardsons_extrapolation){
-    ####Richardsons Extrapolation:
-    gr <- function(x,...) numDeriv::grad(func = NFCP::NFCP_Kalman_filter, x, parameter_names = parameters, log_futures = log_futures,
-                                        dt = dt, futures_TTM = futures_TTM, ME_TTM = ME_TTM)
-  } else gr <- NULL
-
-  ##Domain Boundaries?
-  if(is.null(Domains)) Domains <- NFCP::NFCP_domains(parameters)
-
-  ##Parallel Processing?
-  if(!any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cluster <- FALSE
-
   ##Run the Genetic Algorithm Parameter Estimation:
   NFCP_output <- rgenoud::genoud(NFCP::NFCP_Kalman_filter, nvars = length(parameters), parameter_names = parameters,
                                log_futures = log_futures, dt = dt, futures_TTM = futures_TTM, ME_TTM = ME_TTM,
-                               max = T, gr = gr, Domains = Domains,
-                               boundary.enforcement = 2, gradient.check = FALSE, cluster = cluster, ...)
+
+## Genoud Args:
+max=max, pop.size=pop.size, max.generations=max.generations,
+wait.generations=wait.generations, hard.generation.limit=hard.generation.limit, starting.values=starting.values,
+MemoryMatrix=MemoryMatrix, Domains=Domains, default.domains=default.domains,
+solution.tolerance=solution.tolerance, gr=gr, boundary.enforcement=boundary.enforcement, lexical=lexical,
+gradient.check=gradient.check, BFGS=BFGS, data.type.int=data.type.int, hessian=hessian,
+unif.seed=unif.seed,int.seed=int.seed,print.level=print.level, share.type=share.type,
+instance.number=instance.number, output.path=output.path, output.append=output.append, project.path=project.path, P1=P1,
+P2=P2, P3=P3, P4=P4, P5=P5, P6=P6, P7=P7, P8=P8, P9=P9, P9mix=P9mix, BFGSburnin=BFGSburnin, BFGSfn=BFGSfn, BFGShelp=BFGShelp,
+control=control, optim.method=optim.method, transform=transform, debug=debug, cluster=cluster, balance=balance
+)
+
+
 
   ###Close the cluster:
   if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) parallel::stopCluster(cluster)
@@ -302,9 +345,11 @@ Term Structure Estimation: \n")
   ### Which parameters are the Kappa?
   parameter_index <- which(grepl("kappa", parameters))
 
-  if(length(parameter_index) > 1){
+  order_bool <- NFCP_output$generations != NFCP_output$peakgeneration
 
   ## Sort the estimated parameters in terms of increasing Kappa's
+  if(length(parameter_index) > 1 && order_bool){
+
   Ordered <- order(estimated_parameters[parameter_index,1])
 
   ## Order the Kappas:
@@ -332,7 +377,7 @@ Term Structure Estimation: \n")
     }
 
   ## Ordered outputs:
-  if(exists("SE") & class(SE)[1] != "try-error") SE <- estimated_parameters[,2]
+  if(exists("SE")) if(!any(class(SE) == "try-error")) SE <- estimated_parameters[,2]
   estimated_parameters <- as.numeric(estimated_parameters[,1])
   names(estimated_parameters) <- parameters
 

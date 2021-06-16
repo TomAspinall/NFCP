@@ -12,7 +12,7 @@ Primary features of 'NFCP' include:
 
 - Analytic pricing of European call and put options under estimated n-factor commodity pricing models
 
-- Numeric pricing of American put options under estimated n-factor commodity pricing models
+- Numeric pricing of American options under estimated n-factor commodity pricing models
 
 - Probabilistic forecasting and Monte Carlo simulation of future commodity price paths.
 
