@@ -5,7 +5,7 @@
 - The vignette of 'NFCP' has been updated, with more detail throughout the document.
 - Deprecated function names removed
 - Fixed a bug in 'NFCP_MLE' when the ... argument 'hessian' is FALSE.
-- Removed the 'richardsons_extrapolation' argument of the 'NFCP_MLE' function, however it is still supported within the function.
+- Removed the 'richardsons_extrapolation' argument of the 'NFCP_MLE' function, however it is still supported within the function by default.
 - Minor documentation changes
 
 # NFCP 1.0.1
