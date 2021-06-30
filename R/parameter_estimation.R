@@ -26,7 +26,6 @@
 #'
 #'@param estimate_initial_state  \code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).
 #'
-#'
 #'@param cluster \code{cluster}.	An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 #'to be performed across multiple cluster nodes.
 #'
@@ -289,12 +288,16 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME
   # Assign arguments that have been specified in ...
   for(loop in 1:length(fn_args)){
     var <- names(fn_args)[loop]
-    if(!var %in% c("log_futures", "dt", "futures_TTM", "N_factors", "N_season", "N_ME", 'ME_TTM', 'GBM','estimate_initial_state')){
+    if(!var %in% c("log_futures", "dt", "futures_TTM", "N_factors", "N_season", "N_ME", 'ME_TTM', 'GBM','estimate_initial_state', 'cluster')){
       # print(var)
       if(!is.null(fn_args[[var]])) assign(var, fn_args[[var]])
     }
   }
   if(!Richardsons_extrapolation) gr <- NULL
+
+  ##Parallel Processing?
+  if(!any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cluster <- FALSE
+
   # ----------------------------------------------------------------------
 
   cat("----------------------------------------------------------------
@@ -302,6 +305,7 @@ Term Structure Estimation: \n")
   cat(paste(length(parameters), "unknown parameters \n"))
   cat(paste(nrow(log_futures), "observations \n"))
   cat(paste(ncol(log_futures)), "futures contracts \n")
+  if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cat("parallel processing detected!")
   if(ME_TTM_used){
     cat(paste(length(ME_TTM), "measurement error maturity groupings \n"))
   } else {

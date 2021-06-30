@@ -214,7 +214,7 @@ This was made possible by the application of aggregated data. With only five obs
 
 In the work of Cortazar and Naranjo (2006), on the other hand, the full term structure of oil was used to estimate commodity pricing models. This was a term structure dataset with as many as 150 individual futures contracts observed over a particular observation period, which is clearly too many to estimate measurement errors as unique, unknown parameters. Cortazar and Naranjo (2006) instead treated the measurement error of the model as independent and identical, estimating only one measurement error to provide the best overall fit to observations.
 
-An alternate method to estimating "all-or-one" measurement error is avaialble within the 'NFCP' package. The 'NFCP' package allows for a variable number of measurement errors to be considered within Kalman filtering by grouping a series of futures contract observations by their time-to-maturity at each time point. This can allow for contracts with different maturities to possess different levels of measurement error. Futures prices of many commodities display unique characteristics according to their time-to-maturity, such as contracts with shorter maturities generally displaying higher volatility of returns in comparison to longer-term futures contracts. By considering measurement errors for different futures contracts by their maturity, an improved fit of commodity pricing models to the observable term structure can be achieved at the cost of greater computational complexity.
+An alternate method to estimating "all-or-one" measurement error is available within the 'NFCP' package. The 'NFCP' package allows for a variable number of measurement errors to be considered within Kalman filtering by grouping a series of futures contract observations by their time-to-maturity at each time point. This can allow for contracts with different maturities to possess different levels of measurement error. Futures prices of many commodities display unique characteristics according to their time-to-maturity, such as contracts with shorter maturities generally displaying higher volatility of returns in comparison to longer-term futures contracts. By considering measurement errors for different futures contracts by their maturity, an improved fit of commodity pricing models to the observable term structure can be achieved at the cost of greater computational complexity.
 
 Maturity grouping of measurement error is considered throughout the 'NFCP' package through the 'ME_TTM' argument, which refers to the maximum maturity to consider for a given number of measurement errors. The 'ME_TTM' is only specified when the number of ME parameters is greater than one, and less than the total number of observed futures contracts.
 
@@ -237,11 +237,10 @@ Oil_1F <- NFCP_MLE(
       log_futures = log(SS_oil$stitched_futures),
       dt = SS_oil$dt,
       futures_TTM= SS_oil$stitched_TTM,
+      N_factors = 1,
       N_ME = 3,
       ME_TTM = c(0.5, 1, 1.5),
-      N_factors = 1,
-      N_season = 0,
-      print.level = 0, pop.size = 1000)
+      print.level = 0)
 
 ##Print results:
 print(round(rbind(`Estimated Parameter` = Oil_1F$estimated_parameters, 

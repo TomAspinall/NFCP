@@ -1,3 +1,7 @@
+# NFCP 1.1.1
+
+- Minor bug fix in the 'NFCP_MLE' function that did not allow for parallel processing
+
 # NFCP 1.1.0
 
 - The 'NFCP' package now allows for the consideration of deterministic seasonality within commodity pricing models throughout the package.
