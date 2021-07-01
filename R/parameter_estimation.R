@@ -305,7 +305,7 @@ Term Structure Estimation: \n")
   cat(paste(length(parameters), "unknown parameters \n"))
   cat(paste(nrow(log_futures), "observations \n"))
   cat(paste(ncol(log_futures)), "futures contracts \n")
-  if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cat("parallel processing detected!")
+  if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) cat("parallel processing detected! \n")
   if(ME_TTM_used){
     cat(paste(length(ME_TTM), "measurement error maturity groupings \n"))
   } else {
@@ -328,8 +328,6 @@ P2=P2, P3=P3, P4=P4, P5=P5, P6=P6, P7=P7, P8=P8, P9=P9, P9mix=P9mix, BFGSburnin=
 control=control, optim.method=optim.method, transform=transform, debug=debug, cluster=cluster, balance=balance
 )
 
-
-
   ###Close the cluster:
   if(any(class(cluster)=="cluster" | class(cluster)=="SOCKcluster")) parallel::stopCluster(cluster)
 
@@ -349,7 +347,7 @@ control=control, optim.method=optim.method, transform=transform, debug=debug, cl
   ### Which parameters are the Kappa?
   parameter_index <- which(grepl("kappa", parameters))
 
-  order_bool <- NFCP_output$generations != NFCP_output$peakgeneration
+  order_bool <- NFCP_output$generations != max.generations
 
   ## Sort the estimated parameters in terms of increasing Kappa's
   if(length(parameter_index) > 1 && order_bool){

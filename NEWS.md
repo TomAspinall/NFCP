@@ -1,6 +1,6 @@
 # NFCP 1.1.1
 
-- Minor bug fix in the 'NFCP_MLE' function that did not allow for parallel processing
+- Minor bug fixes in the 'NFCP_MLE' function that did not allow for parallel processing, and resulted in an error for poorly estimated models
 
 # NFCP 1.1.0
 
