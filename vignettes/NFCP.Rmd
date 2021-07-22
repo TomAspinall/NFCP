@@ -210,7 +210,7 @@ In the work of Schwartz and Smith (2000), the measurement error of the model was
 print(SS_oil$two_factor[8:12])
 ```
 
-This was made possible by the application of aggregated data. With only five observations at each time period, it was computationally possible to estimate each measurement error individually. This provided unique insight into the estimated model. The model perfect matched futures prices at approximately 13 months, had the highest fit to medium-term futures contracts and in general had a large difference in ability to explain different areas of the futures price curve for oil.
+This was made possible by the application of aggregated data. With only five observations at each time period, it was computationally possible to estimate each measurement error individually. This provided unique insight into the estimated model. The model perfectly matched futures prices at approximately 13 months, had the highest fit to medium-term futures contracts and in general had a large difference in ability to explain different areas of the futures price curve for oil.
 
 In the work of Cortazar and Naranjo (2006), on the other hand, the full term structure of oil was used to estimate commodity pricing models. This was a term structure dataset with as many as 150 individual futures contracts observed over a particular observation period, which is clearly too many to estimate measurement errors as unique, unknown parameters. Cortazar and Naranjo (2006) instead treated the measurement error of the model as independent and identical, estimating only one measurement error to provide the best overall fit to observations.
 
@@ -231,6 +231,7 @@ Parameter estimation of commodity pricing models is performed through the 'NFCP_
 The following example presents an estimation of a one-factor geometric Brownian motion model with deterministic seasonality to the Schwartz and Smith (2000) crude oil dataset. There are five futures prices observed at each discrete time point, allowing us to consider a model with between 1-5 measurement errors. When only one measurement error (i.e., 'N_ME' = 1) is considered, the measurement error is assumed independent and identical. When five measurement errors are considered (i.e., 'N_ME' = 5), the measurement error is assumed independent and unique. In this example, three measurement errors are considered. The first measurement error considers contracts with maturities of less than six months (i.e., ME_TTM[1] = 0.5). This corresponds to the first two observations. The second measurement error considers observations with maturities between 6-12 months (the third observation), and the final measurement error considers observations with maturities between 12-18 months (observations four and five). Parallel processing is supported in the 'NFCP_MLE' and associated 'genoud' function through the inclusion of a cluster object from the 'parallel' package in the 'cluster' argument. This function call can take up to one-minute to execute:
 
 ```{r}
+
 # Estimate a GBM model:
 Oil_1F <- NFCP_MLE(
       ## Arguments
@@ -381,7 +382,7 @@ The work of Schwartz and Smith (2000) presented forecasts of spot prices develop
 ## Replicate figure 1 of Schwartz and Smith (2000):
 
 SS_expected_spot <- spot_price_forecast(x_0 = c(2.857, 0.119),
-                                           Enron_values,
+                                           parameters = Enron_values,
                                            t = seq(0,9,1/12),
                                            percentiles = c(0.1, 0.9))
 ##Factor one only:
@@ -421,6 +422,7 @@ SS_figure_2 <- cbind(SS_expected_spot[,2], SS_futures_curve)
 matplot(seq(0,9,1/12), log(SS_figure_2), type = 'l', col = 1, 
         xlab = "Time (Years)", ylab = "Log(Price)", 
         main = "Futures Prices and Expected Spot Prices")
+
 ```
 
 ### 4.10.3 Plot the Futures Curve:
@@ -534,7 +536,7 @@ simulated_contracts <- futures_price_simulate(x_0 = c(log(SS_oil$spot[1,1]), 0),
                                             N_obs = nrow(SS_oil$contracts),
                                             futures_TTM = SS_oil$contract_maturities)
 
-##Not Run - plot Simulated prices:
+##Plot Simulated prices:
 matplot(as.Date(rownames(SS_oil$contracts)), simulated_contracts$futures_prices, 
         type = 'l', ylab = "Futures Price ($/bbl, WTI)", xlab = "Observations", 
         main = "Simulated Futures Contracts")

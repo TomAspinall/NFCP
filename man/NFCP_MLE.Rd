@@ -14,6 +14,7 @@ NFCP_MLE(
   ME_TTM = NULL,
   GBM = TRUE,
   estimate_initial_state = FALSE,
+  Domains = NULL,
   cluster = FALSE,
   ...
 )
@@ -40,6 +41,8 @@ When the number of 'ME' parameter values is equal to one or the number of column
 
 \item{estimate_initial_state}{\code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).}
 
+\item{Domains}{\code{matrix}. An option matrix of two columns specifying the lower and upper bounds for parameter estimation. The 'NFCP_domains' function is recommended. When not specified, the default parameter bounds returned by the 'NFCP_domains' function are used.}
+
 \item{cluster}{\code{cluster}.    An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 to be performed across multiple cluster nodes.}
 
@@ -58,9 +61,17 @@ to be performed across multiple cluster nodes.}
 
 \code{Information Criteria} \tab \code{vector}. The Akaikie and Bayesian Information Criterion. \cr
 
-\code{x_t} \tab \code{vector}. The final observation of the state vector. \cr
+\code{x_t} \tab \code{vector}. The final observation of the state vector.
 
-\code{X} \tab \code{matrix}. Optimal one-step-ahead state vector. \cr
+When deterministic seasonality is considered, it also returns the observation point
+
+along the deterministic curve. \cr
+
+\code{X} \tab \code{matrix}. Optimal one-step-ahead state vector.
+
+When deterministic seasonality is considered, it also returns the observation point
+
+along the deterministic curve. \cr
 
 \code{Y} \tab \code{matrix}. Estimated futures prices. \cr
 

@@ -80,7 +80,11 @@ spot_price_forecast <- function(x_0, parameters, t, percentiles = NULL){
   N_season <- length(grep("season", names(parameters)))/2
   ## Incorporate Seasonality (if there is any):
   seasonality <- 0
-  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * t) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * t)
+  if(N_season > 0 && is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
+  seasonal_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * (t + seasonal_trend)) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * (t + seasonal_trend))
+
+  if(!is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
 
   ###Expected Spot Price Forecasting:
   ##Save the expected future spot prices:
@@ -190,7 +194,10 @@ futures_price_forecast <- function(x_0, parameters, t = 0, futures_TTM = 1:10, p
   N_season <- length(grep("season", names(parameters)))/2
   ## Incorporate Seasonality (if there is any):
   seasonality <- 0
-  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+  if(N_season > 0 && is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
+  seasonal_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * (futures_TTM + seasonal_trend)) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * (futures_TTM + seasonal_trend))
+  if(!is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
 
   ###Expected Futures Price Forecasting:
   ##Save the expected Futures prices:
@@ -347,12 +354,14 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
   #Correlated Brownian Process (ie. standard normal):
   shocks <- MASS::mvrnorm(n = (nsteps) * nloops, mu = rep(0, N_factors), Sigma = covariance) * sqrt(dt)
 
-  # Deterministic seasonality:
   ## How many seasonality factors are specified?
   N_season <- length(grep("season", names(parameters)))/2
   ## Incorporate Seasonality (if there is any):
   seasonality <- matrix(0, nrow = nsteps+1)
-  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * time_periods) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * time_periods)
+  if(N_season > 0 && is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
+  seasonal_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * (time_periods + seasonal_trend)) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * (time_periods + seasonal_trend))
+  if(!is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
 
   ##Instantiate save state matrix of simulations:
   state_matrix <- array(dim = c(nsteps+1, N_sim, N_factors))
@@ -485,6 +494,12 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
 
   if(is.null(names(parameters))) stop("parameters must be a named vector. NFCP_parameters function is suggested")
 
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", names(parameters)))/2
+  seas_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+  if(N_season > 0 && is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
+  if(!is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
+
   ##If it's a constant futures_TTM, develop the maturity matrix:
 
   futures_TTM <- t(as.matrix(futures_TTM))
@@ -497,9 +512,6 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     if(dim(futures_TTM)[2]!=N_obs) stop("Dimension of 'futures_TTM' does not match number of observations")
     N_contracts <- nrow(futures_TTM)
   }
-
-  ## How many seasonality factors are specified?
-  N_season <- length(grep("season", names(parameters)))/2
 
     GBM <- any(c("mu", "mu_rn") %in% names(parameters))
 
@@ -522,10 +534,11 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     }
 
     #Initialize State Variable
-    if(length(x_0) != N_factors) stop("Initial state vector length not equal to N factors")
+    if(length(x_0) != (N_factors)) stop("Initial state vector length not equal to N factors")
+    # if(length(x_0) != N_factors) stop("Initial state vector length not equal to N factors")
 
     # Step one - evaluate the measurement error matrix:
-    inhomogeneous_H <- is.null(ME_TTM) && N_ME > 1 && N_ME < N_contracts
+    inhomogeneous_H <- !is.null(ME_TTM) && N_ME > 1 && N_ME < N_contracts
 
     # Measurement error - diagonal elements:
     Ht <- matrix(rep(0, N_contracts), nrow = N_contracts, ncol = ifelse(inhomogeneous_H, N_obs, 1))
@@ -541,20 +554,51 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     Ht[Ht<1.01e-10] <- 0
     Ht[is.na(Ht)] <- 0
 
-    X_t <- matrix(x_0)
+    if(!is.na(x_0["seasonal_trend"])){
+      X_t <- matrix(x_0[!names(x_0) %in% "seasonal_trend"])
+    } else {
+      X_t <- matrix(x_0)
+    }
 
     ##Discrete Time Steps:
 
-    #Insantiate State Vectors ie. the outputs:
+    # Insantiate State Vectors ie. the outputs:
     X <- matrix(0, nrow = N_obs, ncol = N_factors)
     Y <- matrix(0, nrow = N_obs, ncol = N_contracts)
 
-    ## Incorporate Seasonality (if there is any):
+    # Incorporate Seasonality (if there is any):
+
+    ## Is there any seasonality offset to consider? Only relevant if deterministic seasonality is included.
     seasonality <- 0
-    if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+    if(N_season > 0){
+      seasonal_offset <- seq(0, (N_obs-1) * dt, dt)
+      seasonal_offset <- seasonal_offset - floor(seasonal_offset)
+      if(!is.numeric(seas_trend) || seas_trend > 1 || seas_trend < 0) stop("seasonal_trend must be a 'numeric' object between 0 and 1!")
+      seasonal_offset <- seasonal_offset + seas_trend
+
+      ## Adjust data into required format
+      if(!Homogeneous_TTM){
+        seasonal_offsets <- futures_TTM + matrix(seasonal_offset, nrow = N_contracts, ncol = N_obs, byrow = TRUE)
+      } else {
+        seasonal_offsets <- matrix(futures_TTM, nrow = N_contracts, ncol =  N_obs) + matrix(seasonal_offset, nrow = N_contracts, ncol = N_obs, byrow = TRUE)
+      }
+      # The offset ensures that the seasonality is correctly considered:
+      for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * seasonal_offsets) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * seasonal_offsets)
+    }
+    # for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+
 
     ## Place data into required format:
-    dtT <- matrix(seasonality + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,1,N_obs))
+    # dtT <- matrix(seasonality + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = ifelse(Homogeneous_TTM,1,N_obs))
+
+
+    ## Place data into required format:
+    if(!Homogeneous_TTM){
+      dtT <- matrix(seasonality + parameters["E"] + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = N_obs)
+    } else{
+      if(N_season == 0) dtT <- matrix(parameters["E"] + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = 1)
+      else dtT <- matrix(seasonality + parameters["E"] + A_T(parameters, futures_TTM), nrow = N_contracts, ncol = N_obs)
+    }
 
     Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(Homogeneous_TTM,1, N_obs)))
     for(i in 1:N_factors){
@@ -575,7 +619,7 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
       #y = d + Z * x_t + v_t
       #d
       ##Update matrices:
-      d_t <- matrix(dtT[,ifelse(Homogeneous_TTM, 1, t)])
+      d_t <- matrix(dtT[,ifelse(ncol(dtT)==1, 1, t)])
       Z_t <- matrix(Zt[,,ifelse(Homogeneous_TTM, 1, t)], ncol = N_factors)
 
       Y_t <- parameters["E"] + d_t + Z_t %*% X_t + v_t
@@ -600,9 +644,12 @@ futures_price_simulate <- function(x_0, parameters, dt, N_obs, futures_TTM, ME_T
     }
     X_output <- X
     Y_output <- exp(Y)
+
     spot_prices <- as.matrix(exp(rowSums(parameters["E"] + X)))
 
-    if(length(colnames(futures_TTM)) == length(rownames(Y_output))) rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- colnames(futures_TTM)
+    if(length(rownames(futures_TTM)) == ncol(Y_output)) rownames(Y_output) <- rownames(spot_prices) <- rownames(X_output) <- colnames(futures_TTM)
+    if(length(colnames(futures_TTM)) == nrow(Y_output)) colnames(Y_output) <- rownames(futures_TTM)
+
 
     colnames(spot_prices) <- "Spot"
 

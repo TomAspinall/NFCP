@@ -12,7 +12,8 @@ NFCP_Kalman_filter(
   futures_TTM,
   ME_TTM = NULL,
   verbose = FALSE,
-  debugging = FALSE
+  debugging = FALSE,
+  seasonal_trend = NULL
 )
 }
 \arguments{
@@ -35,6 +36,8 @@ When the number of 'ME' parameter values is equal to one or the number of column
 \item{verbose}{\code{logical}. Should additional information be output? see \bold{values}. When \code{verbose = F}, the \code{NFCP_Kalman_filter} function is significantly faster, see \bold{details}.}
 
 \item{debugging}{\code{logical}. Should additional filtering information be output? see \bold{values}.}
+
+\item{seasonal_trend}{\code{numeric}. Optional parameter. This details the trend of the deterministic seasonal component (i.e., where in the season the first observation is located). When not listed, the Kalman filter assumes that observations are at the beginning of the seasonal component.}
 }
 \value{
 \code{NFCP_Kalman_filter} returns a \code{numeric} object when \code{verbose = F}, which corresponds to the log-likelihood of observations.

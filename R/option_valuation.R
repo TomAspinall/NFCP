@@ -120,15 +120,21 @@ American_option_value <- function(x_0, parameters, futures_maturity, option_matu
 
   ## How many seasonality factors are specified?
   N_season <- length(grep("season", names(parameters)))/2
-  ## Incorporate Seasonality (if there is any):
+  ## Incorporate deterministic seasonality (if there is any):
   seasonality <- 0
-  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
+  if(N_season > 0){
+    if(is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
+    seas_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+    seasonal_offset <- futures_TTM - floor(futures_TTM) + seas_trend
+    for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * seasonal_offset) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * seasonal_offset)
+  }
+  # if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
 
   ## From spot to expected futures:
   futures_adjustment <- seasonality + A_T(parameters, futures_TTM)
 
   ## Step 1 - Simulate the N-factor model:
-  simulated_states <- spot_price_simulate(x_0 = x_0, parameters = parameters, t = option_maturity, dt = dt, N_simulations = N_simulations, verbose = TRUE)$state_variables
+  suppressWarnings(simulated_states <- spot_price_simulate(x_0 = x_0, parameters = parameters, t = option_maturity, dt = dt, N_simulations = N_simulations, verbose = TRUE)$state_variables)
 
   # Step 2 - Adjust from simulated state variables to expected futures prices:
   GBM <- "mu_rn" %in% names(parameters)
@@ -270,19 +276,26 @@ American_option_value <- function(x_0, parameters, futures_maturity, option_matu
 #'@export
 European_option_value <- function(x_0, parameters, futures_maturity, option_maturity, K, r, call = FALSE, verbose = FALSE){
 
+  if(is.null(names(parameters))) stop("parameters must be a named vector. NFCP_parameters function is suggested")
+
   ##Remove unnecessary parameters:
   parameters <- parameters[!names(parameters) %in% c("mu")]
   parameters <- parameters[!grepl("ME", names(parameters))]
 
+  N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
+  N_season <- length(grep("season", names(parameters)))/2
+
+  seas_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
+
   x_0 <- c(x_0, use.names = F)
   names(x_0) <- paste0("x_", 1:length(x_0), "_0")
+  if(N_season > 0) x_0 <- c(x_0, seasonal_trend = c(seas_trend, use.names = FALSE))
 
   ###Inputs:
   parameters <- c(futures_maturity = futures_maturity, option_maturity = option_maturity, K = K, r = r, x_0, parameters)
 
   if(futures_maturity < option_maturity) stop("futures_maturity must be greater than option_maturity!")
 
-  N_factors <- max(which(paste0("sigma_", 1:length(parameters)) %in% names(parameters)))
   GBM <- !("kappa_1" %in% names(parameters))
   if(GBM) parameters["kappa_1"] <- 0
 
@@ -311,8 +324,12 @@ European_option_value <- function(x_0, parameters, futures_maturity, option_matu
     GBM <- !("kappa_1" %in% names(parameters))
     if(GBM) parameters["kappa_1"] <- 0
 
+    seas_trend <- ifelse(is.na(parameters["seasonal_trend"]), 0, parameters["seasonal_trend"])
 
     x_0 <- parameters[grepl("x_", names(parameters))]
+    if(N_season > 0 ) x_0 <- c(x_0, seasonal_trend = c(seas_trend, use.names = FALSE))
+
+
     ## Current expected futures price:
     F_Tt <- NFCP::futures_price_forecast(x_0 = x_0, parameters = parameters, t = 0, futures_TTM = parameters["futures_maturity"])
 
@@ -348,22 +365,25 @@ European_option_value <- function(x_0, parameters, futures_maturity, option_matu
     return(Value)
   } else {
 
-    ###Calculate Gradients:
-    TheGreeks <- rep(0, length(parameters))
-    names(TheGreeks) <- names(parameters)
+    params <- parameters[!names(parameters) %in% "seasonal_trend"]
 
-    for(gradit in 1:length(parameters)){
+    ###Calculate Gradients:
+    TheGreeks <- rep(0, length(params))
+    names(TheGreeks) <- names(params)
+
+    for(gradit in 1:length(params)){
+
       if(futures_maturity - option_maturity < 0.02){
-        if(names(parameters)[gradit] %in% c("option_maturity", "futures_maturity")){
-          if(names(parameters)[gradit] %in% "option_maturity")   TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call, side = -1)
-          if(names(parameters)[gradit] %in% "futures_maturity") TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call, side = 1)
+        if(names(params)[gradit] %in% c("option_maturity", "futures_maturity")){
+          if(names(params)[gradit] %in% "option_maturity")   TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = params[gradit], gradit = gradit, call = call, side = -1)
+          if(names(params)[gradit] %in% "futures_maturity") TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = params[gradit], gradit = gradit, call = call, side = 1)
         }
         else {
-          TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call)
+          TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = params[gradit], gradit = gradit, call = call)
         }
       }
       else {
-        TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = parameters[gradit], gradit = gradit, call = call)
+        TheGreeks[gradit] <- numDeriv::grad(func = European_option_calc, parameters = parameters, x = params[gradit], gradit = gradit, call = call)
       }
     }
     names(TheGreeks)[(length(TheGreeks)-1):length(TheGreeks)] <- c("underlying futures price", "underlying volatility")

@@ -1,6 +1,15 @@
+# NFCP 1.2.0
+
+- Major bug fixes in the consideration of deterministic seasonality throughout the 'NFCP' package.
+- The 'x_t' and 'X' objects returned within the 'NFCP_MLE' function now return the placement within the deterministic component the particular observation finds itself.
+- This will return more accurate parameter and forecasting estimates for commodity pricing models that consider deterministic forecasting.
+- *NOTE* Parameter estimates for commodity pricing models that considered deterministic seasonal components in prior versions may be inaccurate.
+- Bug fixes within the 'NFCP_MLE' package
+
 # NFCP 1.1.1
 
 - Minor bug fixes in the 'NFCP_MLE' function that did not allow for parallel processing, and resulted in an error for poorly estimated models
+poorly estimated models
 
 # NFCP 1.1.0
 

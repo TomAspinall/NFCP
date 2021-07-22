@@ -26,6 +26,8 @@
 #'
 #'@param estimate_initial_state  \code{logical}. Should the initial state vector be specified as unknown parameters of the commodity pricing model? These are generally estimated with low precision (see \bold{details}).
 #'
+#'@param Domains \code{matrix}. An option matrix of two columns specifying the lower and upper bounds for parameter estimation. The 'NFCP_domains' function is recommended. When not specified, the default parameter bounds returned by the 'NFCP_domains' function are used.
+#'
 #'@param cluster \code{cluster}.	An optional object returned by one of the makeCluster commands in the \code{parallel} package to allow for parameter estimation
 #'to be performed across multiple cluster nodes.
 #'
@@ -172,9 +174,17 @@
 #'
 #'\code{Information Criteria} \tab \code{vector}. The Akaikie and Bayesian Information Criterion. \cr
 #'
-#'\code{x_t} \tab \code{vector}. The final observation of the state vector. \cr
+#'\code{x_t} \tab \code{vector}. The final observation of the state vector.
 #'
-#'\code{X} \tab \code{matrix}. Optimal one-step-ahead state vector. \cr
+#'When deterministic seasonality is considered, it also returns the observation point
+#'
+#'along the deterministic curve. \cr
+#'
+#'\code{X} \tab \code{matrix}. Optimal one-step-ahead state vector.
+#'
+#'When deterministic seasonality is considered, it also returns the observation point
+#'
+#'along the deterministic curve. \cr
 #'
 #'\code{Y} \tab \code{matrix}. Estimated futures prices. \cr
 #'
@@ -223,7 +233,7 @@
 #'pop.size = 4, print.level = 0, gr = NULL,
 #'max.generations = 0)
 #'@export
-NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE, cluster = FALSE, ...){
+NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME = 1, ME_TTM = NULL, GBM = TRUE, estimate_initial_state = FALSE, Domains = NULL, cluster = FALSE, ...){
 
   # ----------------------------------------------------------------------
   # Input checks:
@@ -253,7 +263,6 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME
   # This section develops the arguments applied to the genoud function call.
 
   ## Custom arguments for NFCP specifically:
-  Domains <- NFCP::NFCP_domains(parameters)
   solution.tolerance <- 0.1
   max <- TRUE
   boundary.enforcement <- 2
@@ -288,11 +297,16 @@ NFCP_MLE <- function(log_futures, dt, futures_TTM, N_factors, N_season = 0, N_ME
   # Assign arguments that have been specified in ...
   for(loop in 1:length(fn_args)){
     var <- names(fn_args)[loop]
-    if(!var %in% c("log_futures", "dt", "futures_TTM", "N_factors", "N_season", "N_ME", 'ME_TTM', 'GBM','estimate_initial_state', 'cluster')){
+    if(!var %in% c("log_futures", "dt", "futures_TTM", "N_factors", "N_season", "N_ME", 'ME_TTM', 'GBM','estimate_initial_state', 'cluster', "Domains")){
       # print(var)
       if(!is.null(fn_args[[var]])) assign(var, fn_args[[var]])
     }
   }
+
+  # Base domains:
+  if(is.null(Domains)) Domains <- NFCP::NFCP_domains(parameters)
+
+
   if(!Richardsons_extrapolation) gr <- NULL
 
   ##Parallel Processing?

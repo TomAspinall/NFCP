@@ -24,6 +24,8 @@
 #'
 #'@param debugging \code{logical}. Should additional filtering information be output? see \bold{values}.
 #'
+#'@param seasonal_trend \code{numeric}. Optional parameter. This details the trend of the deterministic seasonal component (i.e., where in the season the first observation is located). When not listed, the Kalman filter assumes that observations are at the beginning of the seasonal component.
+#'
 #'@details
 #'
 #'\code{NFCP_Kalman_filter} applies the Kalman filter algorithm for observable \code{log_futures} prices against the input parameters of an N-factor model
@@ -332,7 +334,7 @@
 #'dt = SS_oil$dt,
 #'verbose = FALSE)
 #'@export
-NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt, futures_TTM, ME_TTM = NULL, verbose = FALSE, debugging = FALSE){
+NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt, futures_TTM, ME_TTM = NULL, verbose = FALSE, debugging = FALSE, seasonal_trend = NULL){
 
   ## Named Parameter Vector:
   params <- parameter_values
@@ -343,9 +345,6 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
 
   ## How many factors are specified?
   N_factors <- max(which(paste0("sigma_", 1:length(params)) %in% names(params) & sapply(params[paste0("sigma_",1:length(params))], FUN = is.numeric) & !sapply(params[paste0("sigma_",1:length(params))], FUN = is.na)))
-
-  ## How many seasonality factors are specified?
-  N_season <- length(grep("season", parameter_names))/2
 
   ##Standardize format:
   log_futures <- as.matrix(log_futures)
@@ -359,6 +358,28 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   contract_data <- all(dim(futures_TTM)>1)
   if(contract_data && !all(dim(log_futures) == dim(futures_TTM))) stop("log_futures and futures_TTM have different dimensions")
   if(!contract_data && length(futures_TTM)!=N_contracts) stop("Aggregate futures data, however ncol(log_futures) and length(futures_TTM) have different dimensions")
+
+  ## How many seasonality factors are specified?
+  N_season <- length(grep("season", parameter_names))/2
+  ## Is there any seasonality offset to consider? Only relevant if deterministic seasonality is included.
+  seasonality <- 0
+  if(N_season > 0){
+    seasonal_offset <- seq(0, (N_obs-1) * dt, dt)
+    seasonal_offset <- seasonal_offset - floor(seasonal_offset)
+    seas_trend <- ifelse(is.null(seasonal_trend), 0, seasonal_trend)
+    if(!is.numeric(seas_trend) || seas_trend > 1 || seas_trend < 0) stop("seasonal_trend must be a 'numeric' object between 0 and 1!")
+    seasonal_offset <- seasonal_offset + seas_trend
+
+    ## Adjust data into required format
+    if(contract_data){
+      seasonal_offsets <- t(futures_TTM + seasonal_offset)
+    } else {
+      seasonal_offsets <- matrix(futures_TTM, nrow = N_contracts, ncol =  N_obs) + matrix(seasonal_offset, nrow = N_contracts, ncol = N_obs, byrow = T)
+    }
+    # The offset ensures that the seasonality is correctly considered:
+    for(i in 1:N_season) seasonality <- seasonality + params[paste0("season_", i, "_1")] * cos(2 * i * pi * seasonal_offsets) + params[paste0("season_", i, "_2")] * sin(2 * i * pi * seasonal_offsets)
+  }
+
 
   ## Are we using ME maturity groupings?
   inhomogeneous_H <- N_ME > 1 && N_ME < ncol(log_futures)
@@ -396,18 +417,18 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
   G_t <- diag(N_factors)
   diag(G_t) <- sapply(1:N_factors, FUN = function(X) exp(- params[paste0("kappa_", X)] * dt))
 
-  ## Adjust data into required format
+  # Transpose for the 'fkf.sp' func
   futures_TTM <- t(futures_TTM)
 
   Zt <- array(NA, dim = c(N_contracts, N_factors, ifelse(contract_data, N_obs,1)))
   for(i in 1:N_factors) Zt[,i,] <- exp(- params[paste0("kappa_", i)] * futures_TTM)
 
-  ## Incorporate Seasonality (if there is any):
-  seasonality <- 0
-  if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + params[paste0("season_", i, "_1")] * cos(2 * i * pi * futures_TTM) + params[paste0("season_", i, "_2")] * sin(2 * i * pi * futures_TTM)
-
   ## Place data into required format:
-  dtT <- matrix(seasonality + params["E"] + A_T(params, futures_TTM), nrow = N_contracts, ncol = ifelse(contract_data,N_obs,1))
+  if(contract_data) dtT <- matrix(seasonality + params["E"] + A_T(params, futures_TTM), nrow = N_contracts, ncol = N_obs)
+  else{
+    if(N_season == 0) dtT <- matrix(params["E"] + A_T(params, futures_TTM), nrow = N_contracts, ncol = 1)
+    else dtT <- seasonality + params["E"] + matrix(A_T(params, futures_TTM), nrow = N_contracts, ncol = N_obs)
+  }
 
   # Measurement error - diagonal elements:
   Ht <- matrix(rep(0, N_contracts), nrow = N_contracts, ncol = ifelse(inhomogeneous_H, N_obs, 1))
@@ -545,11 +566,19 @@ NFCP_Kalman_filter = function(parameter_values, parameter_names, log_futures, dt
     X.t <- c(x_t)
     names(X.t) <- paste0("x_", 1:N_factors, "_t")
 
+    if(N_season > 0){
+      X.t <- c(X.t, seasonal_offset[N_obs])
+      names(X.t) <- c(paste0("x_", 1:N_factors, "_t"), "seasonal_trend")
+      save_X <- cbind(save_X, seasonal_offset)
+      colnames(save_X) <- c(paste("Factor", 1:N_factors), "seasonal_trend")
+    }
+
     ####Term Structure Analysis:
     #Save the filtered Observations:
     Y_output <- exp(cbind(params["E"] + rowSums(save_X),save_Y))
     if(!is.null(colnames(log_futures))) colnames(Y_output) <- c("filtered Spot", colnames(log_futures))
-    colnames(save_X) <- colnames(save_X_SD) <- paste("Factor", 1:N_factors)
+    colnames(save_X_SD) <- paste("Factor", 1:N_factors)
+    if(N_season == 0) colnames(save_X) <- colnames(save_X_SD)
     rownames(Y_output) <- rownames(save_X)
 
     ###Term Structure Fit:
