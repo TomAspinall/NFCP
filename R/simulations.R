@@ -361,7 +361,7 @@ spot_price_simulate <- function(x_0, parameters, t = 1, dt = 1, N_simulations = 
   if(N_season > 0 && is.na(x_0["seasonal_trend"])) warning("Deterministic seasonality considered, however a 'seasonal_trend' element not specified within 'x_0'. Starting point of 0 along the seasonal curve is assumed.")
   seasonal_trend <- ifelse(is.na(x_0["seasonal_trend"]), 0, x_0["seasonal_trend"])
   if(N_season > 0) for(i in 1:N_season) seasonality <- seasonality + parameters[paste0("season_", i, "_1")] * cos(2 * i * pi * (time_periods + seasonal_trend)) + parameters[paste0("season_", i, "_2")] * sin(2 * i * pi * (time_periods + seasonal_trend))
-  if(!is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
+  if(!is.null(names(x_0)) && !is.na(x_0["seasonal_trend"])) x_0 <- x_0[!names(x_0) %in% "seasonal_trend"]
 
   ##Instantiate save state matrix of simulations:
   state_matrix <- array(dim = c(nsteps+1, N_sim, N_factors))
