@@ -1,6 +1,6 @@
 Package: NFCP
 Title: N-Factor Commodity Pricing Through Term Structure Estimation
-Version: 1.2.0
+Version: 1.2.1
 Authors@R: c(person("Thomas", "Aspinall", email = "tomaspinall2512@gmail.com", 
                   role = c("aut", "cre"),
                   comment = c(ORCID = "0000-0002-6968-1989")),
@@ -25,7 +25,7 @@ Depends:
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
-RoxygenNote: 7.1.1.9001
+RoxygenNote: 7.1.2
 RdMacros:
     mathjaxr,
     Rdpack

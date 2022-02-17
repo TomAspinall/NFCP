@@ -643,7 +643,7 @@ Cortazar, G., & E. S. Schwartz, (2003). Implementing a stochastic model for oil 
 
 Cortazar, G., and L. Naranjo, (2006). An N-factor Gaussian model of oil futures prices. Journal of Futures Markets: Futures, Options, and Other Derivative Products, 26(3), 243-268.
 
-Mebane, W. R., and J. S. Sekhon, (2011). Genetic Optimization Using Derivatives: The rgenoud Package for R. Journal of Statistical Software, 42(11), 1-26. URL https://www.jstatsoft.org/v42/i11/.
+Mebane, W. R., and J. S. Sekhon, (2011). Genetic Optimization Using Derivatives: The rgenoud Package for R. Journal of Statistical Software, 42(11), 1-26. 10.18637/jss.v042.i11.
 
 Cortazar, G., Gutierrez, S., & Ortega, H. (2016). Empirical performance of commodity pricing models: when is it worthwhile to use a stochastic volatility specification?. Journal of Futures Markets, 36(5), 457-487.
 

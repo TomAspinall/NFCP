@@ -1,3 +1,7 @@
+# NFCP 1.2.1
+
+Minor bug fix in the HTML display of some equations rendered in the help pane
+
 # NFCP 1.2.0
 
 - Major bug fixes in the consideration of deterministic seasonality throughout the 'NFCP' package.

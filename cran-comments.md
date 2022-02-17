@@ -1,9 +1,9 @@
 ## Test environments
-* local R installation, R 4.1.0
+* local R installation, R 4.1.2
 * win-builder (devel)
-* R-hub windows-x86_64-devel (r-devel)
+* R-hub Windows Server 2022 64-bit (r-devel)
 * R-hub ubuntu-gcc-release (r-release)
-* R-hub fedora-clang-devel (r-devel)
+* R-hub fedora-clang-gfortran-devel (r-devel)
 
 ## R CMD check results
 
@@ -15,4 +15,4 @@
 
 * 'LSMRealOptions' is a downstream dependency. I have run R CMD check, which passed with 0 errors, warnings and notes.
 
-* This is a minor update of an existing release (1.1.0 -> 1.2.0)
+* This is a very minor update of an existing release (1.2.0 -> 1.2.1)

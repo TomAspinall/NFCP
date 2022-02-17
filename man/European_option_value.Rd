@@ -68,15 +68,15 @@ The particular model features a state vector of length \mjeqn{N}{N} (i.e., N-fac
 
 The value of a European call option would thus be:
 
-\mjdeqn{e^{-r T_0} . E^*[max(F(x(T_0),T_0,T_1) - K, 0)]}{e^(-r T_0) . E^*[max(F(x(T_0),T_0,T_1) - K, 0)]}
+\mjdeqn{e^{-r T_0}  E^*[max(F(x(T_0),T_0,T_1) - K, 0)]}{e^(-r T_0)  E^*[max(F(x(T_0),T_0,T_1) - K, 0)]}
 
 The analytic solution to call and put options are given by:
 
 Call options:
-\mjdeqn{e^{-r T_0}(F(x(0), 0, T_1) . N(d_1) - K.N(d_2))}{e^(-r T_0) (F(x(0), 0, T_1) . N(d_1) - K.N(d_2))}
+\mjdeqn{e^{-r T_0}(F(x(0), 0, T_1)  N(d_1) - KN(d_2))}{e^(-r T_0) (F(x(0), 0, T_1)  N(d_1) - KN(d_2))}
 
 Put options:
-\mjdeqn{e^{-r T_0}(K.N(-d_2) - F(x(0), 0, T_1) . N(-d_1))}{e^(-r T_0) (K.N(-d_2) - F(x(0), 0, T_1) . N(-d_1))}
+\mjdeqn{e^{-r T_0}(KN(-d_2) - F(x(0), 0, T_1)  N(-d_1))}{e^(-r T_0) (KN(-d_2) - F(x(0), 0, T_1)  N(-d_1))}
 
 Where:
 
@@ -85,7 +85,7 @@ Where:
 
 \mjdeqn{d_2 = d_1 - v}{d_2 = d_1 - v}
 
-Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (i.e. \mjeqn{P(Z<d)}{P(Z<d)}).
+Parameter \mjeqn{ N(d) }{N(d)} indicates cumulative probabilities for the standard normal distribution (i.e. \mjeqn{P(Z < d)}{P(Z<d)}).
 
 Finally, parameter \mjeqn{v}{v}, the annualized option volatility, is given by:
 
