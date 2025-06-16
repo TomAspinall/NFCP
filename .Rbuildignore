@@ -1,0 +1,14 @@
+^NFCP\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^cran-comments\.md$
+^CRAN-RELEASE$
+test/
+deploy/
+test.R*
+deploy.R*
+^CRAN-SUBMISSION$
+.gitignore
+test.rmd
+test.R
+deploy.rmd
