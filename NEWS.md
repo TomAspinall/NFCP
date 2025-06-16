@@ -1,3 +1,7 @@
+# NFCP 1.2.2
+
+Patch release for CRAN.
+
 # NFCP 1.2.1
 
 Minor bug fix in the HTML display of some equations rendered in the help pane
